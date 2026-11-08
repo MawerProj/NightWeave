@@ -1,8 +1,8 @@
-import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=6";
-import { projector } from "./astro.js?v=6";
-import { vectorMap } from "./renderer.js?v=6";
-import { normalizeName } from "./training.js?v=6";
-import { downloadBlob } from "./pdf.js?v=6";
+import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=7";
+import { projector } from "./astro.js?v=7";
+import { vectorMap } from "./renderer.js?v=7";
+import { normalizeName } from "./training.js?v=7";
+import { downloadBlob } from "./pdf.js?v=7";
 
 const escape = (text) =>
   String(text).replace(

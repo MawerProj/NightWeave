@@ -1,4 +1,4 @@
-import { RAD, camera, clamp, projector } from "./astro.js?v=6";
+import { RAD, camera, clamp, projector } from "./astro.js?v=7";
 
 const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
 export const mapHeight = (width, config) =>
@@ -188,7 +188,7 @@ export class SkyRenderer {
     this.pending = new Map();
     if (typeof Worker !== "undefined") {
       try {
-        this.worker = new Worker(new URL("./sky-worker.js?v=6", import.meta.url), {
+        this.worker = new Worker(new URL("./sky-worker.js?v=7", import.meta.url), {
           type: "module",
         });
         this.worker.onmessage = ({ data }) => {

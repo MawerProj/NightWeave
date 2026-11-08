@@ -1,5 +1,5 @@
-import { currentSiteUrl } from "./site-url.js?v=6";
-import { openFullscreen } from "./fullscreen.js?v=6";
+import { currentSiteUrl } from "./site-url.js?v=7";
+import { openFullscreen } from "./fullscreen.js?v=7";
 import {
   RAD,
   clamp,
@@ -12,7 +12,7 @@ import {
   boundaryCrossings,
   greatCircles,
   angularDistance,
-} from "./astro.js?v=6";
+} from "./astro.js?v=7";
 import {
   LEVELS,
   selectTargets,
@@ -23,9 +23,9 @@ import {
   scoreDrawing,
   sandboxPoints,
   sortMessier,
-} from "./training.js?v=6";
-import { GREEK_LETTERS, bayerLabel } from "./bayer.js?v=6";
-import { SkyRenderer, mapHeight } from "./renderer.js?v=6";
+} from "./training.js?v=7";
+import { GREEK_LETTERS, bayerLabel } from "./bayer.js?v=7";
+import { SkyRenderer, mapHeight } from "./renderer.js?v=7";
 import {
   createVariant,
   validateConfig,
@@ -33,12 +33,12 @@ import {
   variantSummary,
   variantUrl,
   readVariantUrl,
-} from "./variant.js?v=6";
-import { Atlas } from "./atlas.js?v=6";
-import { makePacket, renderPacket } from "./print.js?v=6";
-import { downloadBlob } from "./pdf.js?v=6";
-import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=6";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=6";
+} from "./variant.js?v=7";
+import { Atlas } from "./atlas.js?v=7";
+import { makePacket, renderPacket } from "./print.js?v=7";
+import { downloadBlob } from "./pdf.js?v=7";
+import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=7";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=7";
 
 const $ = (id) => document.getElementById(id);
 const SIZE = 1000,
@@ -904,12 +904,12 @@ function normalizedEvent(event) {
 function eventCoordinate(event) {
   return projection.inverse(...normalizedEvent(event));
 }
-function place(coordinate) {
+function place(coordinate, focusInput = true) {
   if (!coordinate || state.checked) return;
   if (state.mode === "sandbox") {
     state.pending = coordinate;
     updateAnswer();
-    sandboxInput().focus({ preventScroll: true });
+    if (focusInput) sandboxInput().focus({ preventScroll: true });
     return;
   }
   if (state.mode === "lines") {
@@ -953,7 +953,7 @@ function pointerDown(event) {
     };
     state.pending = null;
     drawMarks();
-  } else place(coordinate);
+  } else place(coordinate, event.pointerType !== "touch" || !sky.closest(".fullscreen-shell"));
 }
 function pointerMove(event) {
   const c = eventCoordinate(event);
@@ -1151,6 +1151,20 @@ function bindEvents() {
   $("expand-map").onclick = () => openFullscreen({
     content: document.querySelector(".lab-body"), stage: $("map-stage"), canvas: sky,
     title: "Тренажёр неба", navigation: document.querySelector(".tabs"), settings: $("settings"),
+    canStartGesture: () => performance.now() - lastPenContact >= 800,
+    onSingleTouchEnd: () => {
+      if (state.mode === "sandbox" && state.pending && !state.checked) sandboxInput().focus({ preventScroll: true });
+    },
+    captureInteraction: () => {
+      const attempt = state;
+      const before = structuredClone({ answers: state.answers, selected: state.selected, pending: state.pending, strokes: state.strokes });
+      return () => {
+        if (state !== attempt) return;
+        drawing = null;
+        Object.assign(state, before);
+        updateAnswer();
+      };
+    },
   });
   $("sandbox-greek").innerHTML = GREEK_LETTERS.map(([symbol, name]) => `<option value="${symbol}">${symbol} · ${name}</option>`).join("");
   $("settings-toggle").onclick = () => {

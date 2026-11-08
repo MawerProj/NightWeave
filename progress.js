@@ -1,5 +1,5 @@
-import { seedCode } from "./codes.js?v=6";
-import { pageUrl, localProgressUrl } from "./site-url.js?v=6";
+import { seedCode } from "./codes.js?v=7";
+import { pageUrl, localProgressUrl } from "./site-url.js?v=7";
 
 const KEY = "nightweave-progress-v1";
 const escape = value => String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);

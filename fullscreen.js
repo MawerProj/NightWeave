@@ -1,10 +1,12 @@
+import { attachMapGestures } from "./map-gestures.js?v=7";
+
 let active = null;
 
 export function closeFullscreen() {
   active?.close();
 }
 
-export function openFullscreen({ content, stage, canvas, title = "Карта неба", navigation, settings }) {
+export function openFullscreen({ content, stage, canvas, title = "Карта неба", navigation, settings, captureInteraction, canStartGesture, onSingleTouchEnd }) {
   closeFullscreen();
   const previousFocus = document.activeElement;
   const parent = content.closest("dialog[open]") || document.body;
@@ -30,7 +32,7 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
 
   const viewport = document.createElement("div");
   viewport.className = "fullscreen-map-viewport";
-  viewport.setAttribute("aria-label", "Область карты; увеличенную карту можно прокручивать");
+  viewport.setAttribute("aria-label", "Область карты; двумя пальцами можно перемещать карту и менять масштаб");
   stage.before(viewport);
   move(stage, viewport);
   const originalWidth = stage.style.width;
@@ -38,6 +40,12 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
   document.body.style.overflow = "hidden";
   let zoom = 1, native = false, closed = false;
   let panning = false, drag = null;
+  const removeGestures = attachMapGestures({
+    viewport, stage, getZoom: () => zoom, setZoom: changeZoom,
+    captureInteraction, canStartGesture,
+    onSingleTouchEnd: () => { if (!panning) onSingleTouchEnd?.(); },
+    onStart: () => { drag = null; },
+  });
   const panButton = document.createElement("button");
   panButton.type = "button";
   panButton.textContent = "Перемещать";
@@ -51,6 +59,7 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
   };
   viewport.addEventListener("pointerdown", event => {
     if (!panning || event.button !== 0) return;
+    if (event.pointerType === "touch" && canStartGesture?.() === false) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
@@ -135,6 +144,7 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
     active = null;
     resize?.disconnect();
     changes?.disconnect();
+    removeGestures();
     windowObject.removeEventListener("resize", fit);
     document.removeEventListener("keydown", keydown, true);
     document.removeEventListener("fullscreenchange", fullscreenChanged);

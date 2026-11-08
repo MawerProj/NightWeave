@@ -4,10 +4,10 @@ import {
   randomGenerator,
   referencePoints,
   clamp,
-} from "./astro.js?v=6";
-import { selectTargets, visibleSegments } from "./training.js?v=6";
-import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=6";
-import { pageUrl } from "./site-url.js?v=6";
+} from "./astro.js?v=7";
+import { selectTargets, visibleSegments } from "./training.js?v=7";
+import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=7";
+import { pageUrl } from "./site-url.js?v=7";
 
 export const DEFAULT_MAPS = [
   {

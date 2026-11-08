@@ -1,5 +1,5 @@
-import { projector } from "./astro.js?v=6";
-import { vectorMap, mapHeight } from "./renderer.js?v=6";
+import { projector } from "./astro.js?v=7";
+import { vectorMap, mapHeight } from "./renderer.js?v=7";
 
 export function drawLocator(
   canvas,
