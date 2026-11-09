@@ -9,8 +9,8 @@
       content="Интерактивный тренажёр звёздного неба. Объекты Мессье, звёзды, созвездия и печатные задания на карте NASA 2020."
     />
     <title>Nightweave — изучай небо</title>
-    <link rel="stylesheet" href="styles.css?v=9" />
-    <script type="module" src="app.js?v=9"></script>
+    <link rel="stylesheet" href="styles.css?v=10" />
+    <script type="module" src="app.js?v=10"></script>
   </head>
   <body>
     <header class="header">
@@ -308,9 +308,9 @@
                 value="1"
             /></label>
           </fieldset>
-          <fieldset class="map-settings linked-map" disabled>
+          <fieldset class="map-settings">
             <legend>Карта 2 · Имена звёзд</legend>
-            <p class="fine">Совпадает с картой 1. Настройки меняются у карты 1.</p>
+            <p class="fine">При новом seed совпадает с картой 1. Можно настроить отдельно и нажать «Применить параметры».</p>
 <label class="checkbox map-center-mode"><input id="map-2-random-center" type="checkbox" checked> Случайный центр по seed</label>
             <label
               >Форма<select id="map-2-shape">
@@ -638,9 +638,9 @@
               <option value="current">Текущее задание · 2 страницы</option>
             </select></label
           ><button id="export-pdf" class="secondary">↓ Задания PDF</button
-          ><button id="export-answers" class="secondary">↓ Ответы PDF</button>
+          ><button id="export-answers" class="secondary">↓ Ответы PDF</button><button id="export-settings" class="secondary">↓ Настройки карт PDF</button>
           <p>
-            Два отдельных файла. Подсказки и твои отметки в задания не попадают.
+            Задания, ответы и настройки — отдельные файлы. Для изменённых настроек номер seed в печати не указывается; QR содержит полную ссылку.
           </p>
         </div>
       </section>

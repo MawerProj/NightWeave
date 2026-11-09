@@ -1,7 +1,7 @@
-import { angularDistance, boundaryCrossings, projector, randomGenerator, scoreAnswer } from "./astro.js?v=9";
-import { bayerMatches } from "./bayer.js?v=9";
-import { scoreDrawing } from "./training.js?v=9";
-import { createVariant, DEFAULT_CONFIG, variantSummary } from "./variant.js?v=9";
+import { angularDistance, boundaryCrossings, projector, randomGenerator, scoreAnswer } from "./astro.js?v=10";
+import { bayerMatches } from "./bayer.js?v=10";
+import { scoreDrawing } from "./training.js?v=10";
+import { createVariant, DEFAULT_CONFIG, variantSummary } from "./variant.js?v=10";
 
 export const EXAM_TOLERANCE = 4;
 const round = value => Math.round(value * 100) / 100;

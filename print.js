@@ -1,15 +1,15 @@
-import { currentSiteUrl } from "./site-url.js?v=9";
+import { currentSiteUrl } from "./site-url.js?v=10";
 import {
   boundaryCrossings,
   projector,
   randomGenerator,
   referencePoints,
-} from "./astro.js?v=9";
-import { selectTargets, visibleSegments, resolveObject, sortMessier } from "./training.js?v=9";
-import { vectorMap, mapHeight } from "./renderer.js?v=9";
-import { createVariant, variantUrl } from "./variant.js?v=9";
-import { createPdf } from "./pdf.js?v=9";
-import { drawPrintQr } from "./print-qr.js?v=9";
+} from "./astro.js?v=10";
+import { selectTargets, visibleSegments, resolveObject, sortMessier } from "./training.js?v=10";
+import { vectorMap, mapHeight } from "./renderer.js?v=10";
+import { createVariant, variantUrl, hasCustomSettings } from "./variant.js?v=10";
+import { createPdf } from "./pdf.js?v=10";
+import { drawPrintQr } from "./print-qr.js?v=10";
 
 const WIDTH = 1654,
   HEIGHT = 2339,
@@ -36,6 +36,7 @@ function text(ctx, value, x, y, width, size = 28, bold = false) {
 export function makePacket(catalog, state, full = true, variant = null) {
   const config = { ...state.config, display: "paper" };
   const url = variantUrl(currentSiteUrl(), variant?.base || config, state.mode, variant?.exam ? "E" : "T");
+  const customized = !variant?.exam && hasCustomSettings(variant?.base || state.config);
   if (!full) {
     const mode = state.mode;
     const targets =
@@ -50,7 +51,10 @@ export function makePacket(catalog, state, full = true, variant = null) {
         : state.targets;
     return {
       url,
-      seed: config.seed,
+      seed: customized ? null : config.seed,
+      sourceSeed: config.seed,
+      settings: variant?.base || state.config,
+      customized,
       config,
       sheets: [
         {
@@ -66,7 +70,10 @@ export function makePacket(catalog, state, full = true, variant = null) {
   const v = variant || createVariant(catalog, config);
   return {
     url,
-    seed: v.seed,
+    seed: customized ? null : v.seed,
+    sourceSeed: v.seed,
+    settings: v.base,
+    customized,
     exam: Boolean(v.exam),
     participantName: v.exam ? v.participantName : "",
     config: v.base,
@@ -101,7 +108,7 @@ function page(seed, number, total, answer, landscape = false, url, participantNa
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   font(ctx, 24);
-  ctx.fillText(`#${seed}`, MARGIN, 94);
+  if (seed !== null) ctx.fillText(`#${seed}`, MARGIN, 94);
   ctx.fillText(participantName ? `Фамилия И. О.: ${participantName}` : "Фамилия И. О.: __________________________", 430, 94, canvas.width - 840);
   ctx.fillText(`Страница ${number} из ${total}`, canvas.width - 374, 94);
   ctx.lineWidth = 1;
@@ -382,4 +389,32 @@ export async function renderPacket(packet, catalog, answer = false) {
       heightPoints: canvas.width > canvas.height ? 595.28 : 841.89,
     })),
   );
+}
+
+export async function renderSettingsPacket(packet) {
+  await document.fonts.ready;
+  const { canvas, ctx } = page(null, 1, 1, false, false, packet.url, packet.participantName);
+  let y = text(ctx, "Настройки карт Nightweave", MARGIN, 185, WIDTH - 2 * MARGIN, 36, true);
+  const c = packet.settings || packet.config;
+  const levels = { beginner: "начальный", standard: "базовый", advanced: "продвинутый", expert: "экспертный" };
+  const displays = { stars: "цветные звёзды", milkyway: "звёзды и Млечный Путь", mono: "белые звёзды", paper: "чёрные звёзды на белом" };
+  const projections = { stereo: "стереографическая", equidistant: "равнопромежуточная", orthographic: "ортографическая", gnomonic: "гномоническая" };
+  const write = value => { y = text(ctx, value, MARGIN, y + 12, WIDTH - 2 * MARGIN, 24); };
+  write(packet.customized ? "Карты изменены вручную. Одного номера seed недостаточно: используйте полную ссылку или QR-код этого листа." : "Параметры набора карт. Полная ссылка сохранена в QR-коде.");
+  write(`Исходный seed: ${packet.exam ? "E" : "T"}${packet.sourceSeed || packet.seed}. Координаты каталога J2000.`);
+  write(`Звёзды: ${c.starCount}; Мессье: ${c.messierCount}; сложность: ${levels[c.level]}; проверка Байера: ${c.bayerTest ? "да" : "нет"}.`);
+  write(`Система: ${c.frame === "horizon" ? "горизонтальная" : "экваториальная"}; дата UTC: ${c.date}; широта: ${c.latitude}°; долгота: ${c.longitude}°; обрезка горизонтом: ${c.horizon ? "да" : "нет"}.`);
+  write(`Вид: ${displays[c.display]}; предел величины: ${c.magnitude}; размер звёзд: ${c.starSize}; яркость фона: ${c.exposure}. Печатные карты: чёрные звёзды на белом фоне.`);
+  const maps = packet.sheets;
+  for (const [index, sheet] of maps.entries()) {
+    const m = sheet.config;
+    y += 26;
+    y = text(ctx, maps.length === 3 ? `Карта ${index + 1}` : "Текущая карта", MARGIN, y, WIDTH - 2 * MARGIN, 28, true);
+    write(`Форма: ${m.shape === "rectangle" ? "прямоугольник" : "круг"}; проекция: ${projections[m.projection]}; поле: ${m.fov}°; соотношение сторон: ${m.shape === "rectangle" ? m.aspect : 1}.`);
+    write(`Центр RA: ${((m.ra % 360 + 360) % 360 / 15).toFixed(6)}h; Dec: ${m.dec.toFixed(6)}°; поворот: ${m.roll.toFixed(6)}°.`);
+    if (m.frame === "horizon") write(`Центр в горизонте: азимут ${m.az.toFixed(6)}°; высота ${m.alt.toFixed(6)}°.`);
+    write(`Выбор центра: ${m.randomCenter ? "по seed" : "вручную"}. Настройка поворота: ${c.maps?.[maps.length === 3 ? index : sheet.mode === "stars" ? 1 : ["messier", "lines", "sandbox"].includes(sheet.mode) ? 2 : 0]?.roll ?? c.roll}° (до поворота по seed).`);
+  }
+  write("Полная ссылка для точного восстановления находится в QR-коде. Настройки включены в ссылку, адрес текущего хостинга определяется автоматически.");
+  return createPdf([{ jpeg: canvas.toDataURL("image/jpeg", .96), width: canvas.width, height: canvas.height, widthPoints: 595.28, heightPoints: 841.89 }]);
 }

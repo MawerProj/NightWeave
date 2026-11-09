@@ -1,7 +1,7 @@
-import { randomGenerator, shuffle, clamp, angularDistance } from "./astro.js?v=9";
-import { eligibleObjects, normalizeName } from "./training.js?v=9";
-import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=9";
-import { pageUrl } from "./site-url.js?v=9";
+import { randomGenerator, shuffle, clamp, angularDistance } from "./astro.js?v=10";
+import { eligibleObjects, normalizeName } from "./training.js?v=10";
+import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=10";
+import { pageUrl } from "./site-url.js?v=10";
 
 export const QUESTION_TYPES = {
   "messier-name": "Название по номеру Мессье",

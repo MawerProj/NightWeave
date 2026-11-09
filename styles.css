@@ -1951,8 +1951,10 @@ dialog ol {
   .fullscreen-shell .quiz-choice { font-size: 12px; padding: 8px; }
 }
 
-.linked-map > label { display: none; }
-.linked-map { min-width: 0; }
+.constellation-stars { list-style: none; padding: 0; display: grid; gap: 10px; }
+.constellation-stars li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; border-bottom: 1px solid var(--line); padding: 8px 0; }
+.constellation-stars a { color: var(--lime); text-underline-offset: 3px; }
+.constellation-stars span { font-size: 12px; color: var(--muted); }
 .bayer-editor { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 1fr); gap: 8px; }
 .bayer-editor select, .bayer-editor input { width: 100%; min-width: 0; }
 .bayer-editor .bayer-answer { grid-column: auto; }

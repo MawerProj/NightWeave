@@ -6,8 +6,8 @@ import {
   shuffle,
   referencePoints,
   boundaryCrossings,
-} from "./astro.js?v=9";
-import { normalizeBayer } from "./bayer.js?v=9";
+} from "./astro.js?v=10";
+import { normalizeBayer } from "./bayer.js?v=10";
 
 export const LEVELS = {
   beginner: {

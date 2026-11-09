@@ -5,10 +5,10 @@ import {
   referencePoints,
   clamp,
   angularDistance,
-} from "./astro.js?v=9";
-import { selectTargets, visibleSegments } from "./training.js?v=9";
-import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=9";
-import { pageUrl } from "./site-url.js?v=9";
+} from "./astro.js?v=10";
+import { selectTargets, visibleSegments } from "./training.js?v=10";
+import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=10";
+import { pageUrl } from "./site-url.js?v=10";
 
 export const DEFAULT_MAPS = [
   {
@@ -158,8 +158,13 @@ export function validateConfig(input = {}) {
       result.fov = Math.min(110, result.fov);
     return result;
   });
-  c.maps[1] = { ...c.maps[0] };
   return c;
+}
+
+export function hasCustomSettings(config) {
+  const settings = { ...validateConfig(config), seed: undefined };
+  const defaults = { ...validateConfig(), seed: undefined };
+  return Boolean(changedSettings(settings, defaults));
 }
 
 export function createVariant(catalog, input) {
@@ -168,7 +173,23 @@ export function createVariant(catalog, input) {
   const centers = [];
   let firstConfig;
   const configs = base.maps.map((map, index) => {
-    if (index === 1) return { ...firstConfig };
+    if (index === 1) {
+      if (JSON.stringify(map) === JSON.stringify(base.maps[0])) {
+        centers.push(base.frame === "horizon" ? [firstConfig.az, firstConfig.alt] : [firstConfig.ra, firstConfig.dec]);
+        return { ...firstConfig };
+      }
+      const sharedRandom = randomGenerator(base.seed + "maps-v9");
+      const sharedCenter = [sharedRandom() * 360,
+        Math.asin(base.frame === "horizon" ? 0.1 + sharedRandom() * 0.85 : sharedRandom() * 2 - 1) * 180 / Math.PI];
+      const sharedRoll = Math.floor(sharedRandom() * 360);
+      const center = map.randomCenter
+        ? sharedCenter
+        : (base.frame === "horizon" ? [base.az, base.alt] : [map.ra, map.dec]);
+      centers.push(center);
+      return { ...firstConfig, ...map,
+        ...(base.frame === "horizon" ? { az: center[0], alt: center[1] } : { ra: center[0], dec: center[1] }),
+        roll: sharedRoll + map.roll };
+    }
     let center = base.frame === "horizon" ? [base.az, base.alt] : [map.ra, map.dec];
     if (map.randomCenter) {
       let best = null, bestDistance = -1;

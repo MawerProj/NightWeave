@@ -1,4 +1,4 @@
-import { attachMapGestures } from "./map-gestures.js?v=9";
+import { attachMapGestures } from "./map-gestures.js?v=10";
 
 let active = null;
 

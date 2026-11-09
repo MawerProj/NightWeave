@@ -1,9 +1,9 @@
-import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=9";
-import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=9";
-import { nearestPlacedPoint } from "./point-drag.js?v=9";
-import { currentSiteUrl } from "./site-url.js?v=9";
-import { canvasPoint } from "./map-view.js?v=9";
-import { openFullscreen } from "./fullscreen.js?v=9";
+import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=10";
+import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=10";
+import { nearestPlacedPoint } from "./point-drag.js?v=10";
+import { currentSiteUrl } from "./site-url.js?v=10";
+import { canvasPoint } from "./map-view.js?v=10";
+import { openFullscreen } from "./fullscreen.js?v=10";
 import {
   RAD,
   clamp,
@@ -16,7 +16,7 @@ import {
   boundaryCrossings,
   greatCircles,
   angularDistance,
-} from "./astro.js?v=9";
+} from "./astro.js?v=10";
 import {
   LEVELS,
   selectTargets,
@@ -27,9 +27,9 @@ import {
   scoreDrawing,
   sandboxPoints,
   sortMessier,
-} from "./training.js?v=9";
-import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=9";
-import { SkyRenderer, mapHeight } from "./renderer.js?v=9";
+} from "./training.js?v=10";
+import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=10";
+import { SkyRenderer, mapHeight } from "./renderer.js?v=10";
 import {
   createVariant,
   validateConfig,
@@ -37,12 +37,12 @@ import {
   variantSummary,
   variantUrl as taskUrl,
   readVariantUrl,
-} from "./variant.js?v=9";
-import { Atlas } from "./atlas.js?v=9";
-import { makePacket, renderPacket } from "./print.js?v=9";
-import { downloadBlob } from "./pdf.js?v=9";
-import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=9";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=9";
+} from "./variant.js?v=10";
+import { Atlas } from "./atlas.js?v=10";
+import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=10";
+import { downloadBlob } from "./pdf.js?v=10";
+import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=10";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=10";
 
 const $ = (id) => document.getElementById(id);
 const SIZE = 1000,
@@ -355,6 +355,7 @@ function newTask(changeSeed = false, supplied = null) {
   try {
     if (changeSeed) $("seed").value = numericSeed();
     const config = supplied ? validateConfig(supplied) : readConfig();
+    if (changeSeed && !isExam) config.maps[1] = { ...config.maps[0] };
     const mode = state.mode;
     variant = isExam ? createExam(catalog, config.seed) : createVariant(catalog, config);
     freeAttempt = null;
@@ -1221,7 +1222,7 @@ async function exportPdf(answer = false) {
       bytes = await renderPacket(packet, catalog, answer);
     downloadBlob(
       new Blob([bytes], { type: "application/pdf" }),
-      `nightweave-${state.config.seed}-${answer ? "answers" : "tasks"}.pdf`,
+      `nightweave-${packet.customized ? "custom" : state.config.seed}-${answer ? "answers" : "tasks"}.pdf`,
     );
     toast(
       answer
@@ -1397,6 +1398,17 @@ function bindEvents() {
   $("check").onclick = () => checkAnswer();
   $("export-pdf").onclick = () => exportPdf(false);
   $("export-answers").onclick = () => exportPdf(true);
+  $("export-settings").onclick = async () => {
+    const button = $("export-settings");
+    button.disabled = true;
+    try {
+      const packet = makePacket(catalog, state, $("pdf-scope").value === "full", variant);
+      const bytes = await renderSettingsPacket(packet);
+      downloadBlob(new Blob([bytes], { type: "application/pdf" }), "nightweave-map-settings.pdf");
+      toast("Настройки карт скачаны отдельным PDF.");
+    } catch (error) { toast("Не удалось создать PDF настроек: " + error.message); }
+    finally { button.disabled = false; }
+  };
   $("snapshot").onclick = snapshot;
   document.querySelector(".dialog-close").onclick = () => $("dialog").close();
   $("dialog").addEventListener("click", (event) => {
@@ -1463,8 +1475,6 @@ async function initialize() {
     if (
       saved?.variant?.base &&
       saved.variant.generation === 9 &&
-      saved.variant.configs?.[0]?.ra === saved.variant.configs?.[1]?.ra &&
-      saved.variant.configs?.[0]?.dec === saved.variant.configs?.[1]?.dec &&
       (!linked ||
         (isExam ? linked.config.seed === saved.variant.seed && saved.variant.exam : JSON.stringify(validateConfig(linked.config)) ===
           JSON.stringify(validateConfig(saved.variant.base))))
