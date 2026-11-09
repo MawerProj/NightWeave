@@ -1,15 +1,15 @@
-import { currentSiteUrl } from "./site-url.js?v=7";
+import { currentSiteUrl } from "./site-url.js?v=9";
 import {
   boundaryCrossings,
   projector,
   randomGenerator,
   referencePoints,
-} from "./astro.js?v=7";
-import { selectTargets, visibleSegments, resolveObject, sortMessier } from "./training.js?v=7";
-import { vectorMap, mapHeight } from "./renderer.js?v=7";
-import { createVariant, variantUrl } from "./variant.js?v=7";
-import { createPdf } from "./pdf.js?v=7";
-import { drawPrintQr } from "./print-qr.js?v=7";
+} from "./astro.js?v=9";
+import { selectTargets, visibleSegments, resolveObject, sortMessier } from "./training.js?v=9";
+import { vectorMap, mapHeight } from "./renderer.js?v=9";
+import { createVariant, variantUrl } from "./variant.js?v=9";
+import { createPdf } from "./pdf.js?v=9";
+import { drawPrintQr } from "./print-qr.js?v=9";
 
 const WIDTH = 1654,
   HEIGHT = 2339,
@@ -35,7 +35,7 @@ function text(ctx, value, x, y, width, size = 28, bold = false) {
 
 export function makePacket(catalog, state, full = true, variant = null) {
   const config = { ...state.config, display: "paper" };
-  const url = variantUrl(currentSiteUrl(), variant?.base || config, state.mode);
+  const url = variantUrl(currentSiteUrl(), variant?.base || config, state.mode, variant?.exam ? "E" : "T");
   if (!full) {
     const mode = state.mode;
     const targets =
@@ -67,6 +67,8 @@ export function makePacket(catalog, state, full = true, variant = null) {
   return {
     url,
     seed: v.seed,
+    exam: Boolean(v.exam),
+    participantName: v.exam ? v.participantName : "",
     config: v.base,
     sheets: [
       {
@@ -91,7 +93,7 @@ export function makePacket(catalog, state, full = true, variant = null) {
   };
 }
 
-function page(seed, number, total, answer, landscape = false, url) {
+function page(seed, number, total, answer, landscape = false, url, participantName = "") {
   const canvas = document.createElement("canvas");
   canvas.width = landscape ? HEIGHT : WIDTH;
   canvas.height = landscape ? WIDTH : HEIGHT;
@@ -100,7 +102,7 @@ function page(seed, number, total, answer, landscape = false, url) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   font(ctx, 24);
   ctx.fillText(`#${seed}`, MARGIN, 94);
-  ctx.fillText("Фамилия И. О.: __________________________", 550, 94);
+  ctx.fillText(participantName ? `Фамилия И. О.: ${participantName}` : "Фамилия И. О.: __________________________", 430, 94, canvas.width - 840);
   ctx.fillText(`Страница ${number} из ${total}`, canvas.width - 374, 94);
   ctx.lineWidth = 1;
   ctx.strokeStyle = "#111";
@@ -156,12 +158,13 @@ function instructionPage(packet, answer) {
     answer,
     false,
     packet.url,
+    packet.participantName,
   );
   let y = 173;
   y =
     text(
       ctx,
-      "Не забудьте подписать каждый лист!",
+      packet.exam ? "Экзамен · максимум 120 баллов. Подпишите каждый лист!" : "Не забудьте подписать каждый лист!",
       MARGIN,
       y,
       WIDTH - 2 * MARGIN,
@@ -171,7 +174,7 @@ function instructionPage(packet, answer) {
   if (packet.sheets.length === 3) {
     y = text(
       ctx,
-      "1. Отметьте на Карте 1, если возможно, точки равноденствия (♈, ♎) и солнцестояния (☀, ❄); точку пересечения галактического и небесного экваторов Γ; точку пересечения эклиптики и галактического экватора ε.",
+      "1. Отметьте на Карте 1, если возможно, точки равноденствия (♈, ♎) и солнцестояния (♋, ♑); точку пересечения галактического и небесного экваторов Γ; точку пересечения эклиптики и галактического экватора ε.",
       MARGIN,
       y,
       WIDTH - 2 * MARGIN,
@@ -227,6 +230,7 @@ function instructionPage(packet, answer) {
       y,
       WIDTH - 2 * MARGIN,
     );
+    if (packet.exam) text(ctx, "Баллы: 1 — 12; 2 — 12; 3 — 42; 4 — 36; 5 — 16. По 1 баллу: крестики и треугольники; подпись «Фамилия И. О.». Положение: линейный допуск 4°. Звезда: 1 за положение + 1 за Байера; верное отсутствие — 2. Рисунок: полнота и точность линий.", MARGIN, y + 145, WIDTH - 2 * MARGIN, 22);
   } else {
     const sheet = packet.sheets[0];
     const instruction =
@@ -283,8 +287,8 @@ function annotate(ctx, canvas, sheet) {
             : {
                 spring: "♈",
                 autumn: "♎",
-                summer: "☀",
-                winter: "❄",
+                summer: "♋",
+                winter: "♑",
                 G1: "Γ",
                 "epsilon-1": "ε",
               }[target.id] || String(index + 1));
@@ -334,6 +338,7 @@ export async function renderPacket(packet, catalog, answer = false) {
       answer,
       sheet.config.shape === "rectangle",
       packet.url,
+      packet.participantName,
     );
     font(ctx, 36);
     ctx.textAlign = "center";

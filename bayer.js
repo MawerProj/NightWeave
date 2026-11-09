@@ -48,3 +48,11 @@ export function bayerLabel(letter, index, constellation) {
   if (!String(constellation).trim()) throw new Error("Впиши название созвездия, например Лира или Lyr.");
   return `${letter}${suffix} ${String(constellation).trim()}`;
 }
+
+export function bayerMatches(answer, expected, catalog) {
+  if (!String(answer || "").trim() || !expected) return false;
+  const normalized = normalizeBayer(expected, catalog);
+  if (normalized) return normalizeBayer(answer, catalog) === normalized;
+  const literal = value => String(value).normalize("NFKC").toLowerCase().replace(/[\s.]/g, "");
+  return literal(answer) === literal(expected);
+}

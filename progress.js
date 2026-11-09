@@ -1,5 +1,5 @@
-import { seedCode } from "./codes.js?v=7";
-import { pageUrl, localProgressUrl } from "./site-url.js?v=7";
+import { seedCode } from "./codes.js?v=9";
+import { pageUrl, localProgressUrl } from "./site-url.js?v=9";
 
 const KEY = "nightweave-progress-v1";
 const escape = value => String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
@@ -37,5 +37,5 @@ export function updateProgressCount() {
 
 export function showProgress(openDialog) {
   const items = readProgress();
-  openDialog(`<p class="eyebrow">ТВОЙ МАРШРУТ</p><h2>Мой прогресс</h2><p>Последние 60 результатов тренажёра и квизов хранятся в этом браузере.</p>${items.length ? `<div class="table-scroll"><table><thead><tr><th>Дата</th><th>Seed</th><th>Задания</th><th>Баллы</th><th></th></tr></thead><tbody>${items.map(item => `<tr><td>${new Date(item.date).toLocaleDateString("ru-RU")}</td><td>${escape(seedCode(item.kind, item.seed))}</td><td>${escape(item.label || (item.kind === "Q" ? "Квиз" : "Тренажёр"))}</td><td>${item.score} / ${item.maximum}</td><td><a class="subtle" href="${escape(localProgressUrl(item).href)}">Открыть ↗</a></td></tr>`).join("")}</tbody></table></div>` : "<p>Здесь появится результат первой проверки.</p>"}`);
+  openDialog(`<p class="eyebrow">ТВОЙ МАРШРУТ</p><h2>Мой прогресс</h2><p>Последние 60 результатов тренажёра, квизов и экзаменов хранятся в этом браузере.</p>${items.length ? `<div class="table-scroll"><table><thead><tr><th>Дата</th><th>Seed</th><th>Задания</th><th>Баллы</th><th></th></tr></thead><tbody>${items.map(item => `<tr><td>${new Date(item.date).toLocaleDateString("ru-RU")}</td><td>${escape(seedCode(item.kind, item.seed))}</td><td>${escape(item.label || (item.kind === "Q" ? "Квиз" : "Тренажёр"))}</td><td>${item.score} / ${item.maximum}</td><td><a class="subtle" href="${escape(localProgressUrl(item).href)}">Открыть ↗</a></td></tr>`).join("")}</tbody></table></div>` : "<p>Здесь появится результат первой проверки.</p>"}`);
 }

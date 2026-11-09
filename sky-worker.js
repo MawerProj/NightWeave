@@ -1,4 +1,4 @@
-import { rasterize } from "./renderer.js?v=7";
+import { rasterize } from "./renderer.js?v=9";
 
 let texture;
 self.onmessage = async ({ data }) => {

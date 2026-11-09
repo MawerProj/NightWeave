@@ -1,8 +1,8 @@
-import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=7";
-import { projector } from "./astro.js?v=7";
-import { vectorMap } from "./renderer.js?v=7";
-import { normalizeName } from "./training.js?v=7";
-import { downloadBlob } from "./pdf.js?v=7";
+import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=9";
+import { projector } from "./astro.js?v=9";
+import { vectorMap } from "./renderer.js?v=9";
+import { normalizeName } from "./training.js?v=9";
+import { downloadBlob } from "./pdf.js?v=9";
 
 const escape = (text) =>
   String(text).replace(
@@ -22,6 +22,7 @@ export class Atlas {
   }
   open() {
     closeFullscreen();
+    this.query = "";
     this.openDialog(
       `<p class="eyebrow">FIELD GUIDE</p><h2>Каталог неба</h2><div class="atlas-search"><label>Каталог<select id="atlas-kind"><option value="messier">Мессье · 110 объектов</option><option value="stars">Именованные звёзды · ${this.catalog.named.length}</option></select></label><label>Поиск<input id="atlas-query" type="search" placeholder="M31, Плеяды, Вега, α Lyr…" autocomplete="off"></label></div><p id="atlas-count" class="fine"></p><div id="atlas-list" class="atlas-list"></div>`,
     );
@@ -69,7 +70,6 @@ export class Atlas {
     };
     kind.onchange = render;
     query.oninput = render;
-    document.getElementById("finder-expand").onclick = () => openFullscreen({ content: document.querySelector(".finder-view"), stage: canvas, canvas, title: "Карта-искатель " + object.name });
     render();
   }
   detail(object) {

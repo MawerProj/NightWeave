@@ -6,8 +6,8 @@ import {
   shuffle,
   referencePoints,
   boundaryCrossings,
-} from "./astro.js?v=7";
-import { normalizeBayer } from "./bayer.js?v=7";
+} from "./astro.js?v=9";
+import { normalizeBayer } from "./bayer.js?v=9";
 
 export const LEVELS = {
   beginner: {
@@ -108,7 +108,7 @@ export function normalizeName(value) {
 }
 
 export function sandboxPoints(config) {
-  const symbols = {spring:"♈",autumn:"♎",summer:"☀",winter:"❄",north:"NCP",south:"SCP",G1:"Γ₁",G2:"Γ₂","epsilon-1":"ε₁","epsilon--1":"ε₂"};
+  const symbols = {spring:"♈",autumn:"♎",summer:"♋",winter:"♑",north:"NCP",south:"SCP",G1:"Γ₁",G2:"Γ₂","epsilon-1":"ε₁","epsilon--1":"ε₂"};
   return [...referencePoints, ...(config ? boundaryCrossings(config) : [])].map(point => ({
     ...point, kind: "reference", shortName: symbols[point.id] || point.name.split(" ·")[0],
   }));

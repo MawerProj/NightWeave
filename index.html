@@ -9,8 +9,8 @@
       content="Интерактивный тренажёр звёздного неба. Объекты Мессье, звёзды, созвездия и печатные задания на карте NASA 2020."
     />
     <title>Nightweave — изучай небо</title>
-    <link rel="stylesheet" href="styles.css?v=7" />
-    <script type="module" src="app.js?v=7"></script>
+    <link rel="stylesheet" href="styles.css?v=9" />
+    <script type="module" src="app.js?v=9"></script>
   </head>
   <body>
     <header class="header">
@@ -20,6 +20,7 @@
       >
       <nav aria-label="Навигация">
         <button class="nav active" id="practice-nav">Тренажёр</button
+        ><a class="nav" href="exam.html">Экзамен</a
         ><a class="nav" href="quiz.html">Квизы</a
         ><button class="nav" id="catalog-nav">Каталог</button
         ><button class="nav" id="history-nav">
@@ -62,11 +63,11 @@
         </button>
         <div class="seed-controls">
           <label
-            >Открыть по seed · T… или Q…<input
+            >Открыть по seed · T…, Q… или E…<input
               id="variant-seed"
               inputmode="text"
               maxlength="14"
-              pattern="[TtQq]?[0-9]{1,12}"
+              pattern="[TtQqEe]?[0-9]{1,12}"
               value="T684920157" /></label
           ><button id="load-variant" class="secondary">Открыть</button
           ><button id="copy-variant" class="secondary">
@@ -254,6 +255,7 @@
         <div class="maps-settings">
           <fieldset class="map-settings">
             <legend>Карта 1 · Опорные точки</legend>
+<label class="checkbox map-center-mode"><input id="map-1-random-center" type="checkbox" checked> Случайный центр по seed</label>
             <label
               >Форма<select id="map-1-shape">
                 <option value="circle" selected>Круглая</option>
@@ -306,8 +308,10 @@
                 value="1"
             /></label>
           </fieldset>
-          <fieldset class="map-settings">
+          <fieldset class="map-settings linked-map" disabled>
             <legend>Карта 2 · Имена звёзд</legend>
+            <p class="fine">Совпадает с картой 1. Настройки меняются у карты 1.</p>
+<label class="checkbox map-center-mode"><input id="map-2-random-center" type="checkbox" checked> Случайный центр по seed</label>
             <label
               >Форма<select id="map-2-shape">
                 <option value="circle" selected>Круглая</option>
@@ -362,6 +366,7 @@
           </fieldset>
           <fieldset class="map-settings">
             <legend>Карта 3 · Мессье и созвездия</legend>
+<label class="checkbox map-center-mode"><input id="map-3-random-center" type="checkbox" checked> Случайный центр по seed</label>
             <label
               >Форма<select id="map-3-shape">
                 <option value="circle">Круглая</option>
@@ -465,11 +470,11 @@
       <section class="lab" aria-label="Тренажёр">
         <div class="lab-top">
           <div class="tabs" role="tablist" aria-label="Вид задания">
-            <button role="tab" aria-selected="false" data-mode="reference">
+            <button role="tab" aria-selected="true" data-mode="reference">
               1–2. Опорные точки</button
             ><button role="tab" aria-selected="false" data-mode="stars">
               3. Имена звёзд</button
-            ><button role="tab" aria-selected="true" data-mode="messier">
+            ><button role="tab" aria-selected="false" data-mode="messier">
               4. Мессье <span>24</span></button            ><button role="tab" aria-selected="false" data-mode="lines">
               5. Созвездия</button
             ><button role="tab" aria-selected="false" data-mode="sandbox">

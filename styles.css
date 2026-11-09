@@ -1899,6 +1899,11 @@ dialog ol {
 .fullscreen-map-viewport { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: none; padding: 10px; display: grid; align-items: start; justify-items: start; scrollbar-width: thin; }
 .fullscreen-map-viewport > .map-stage { max-width: none; margin: 0 auto; flex: none; }
 .fullscreen-map-viewport > canvas { display: block; max-width: none !important; height: auto !important; margin: 0 auto !important; flex: none; }
+.fullscreen-transform-frame { position: relative; margin: 0 auto; flex: none; }
+.fullscreen-transform-frame > .map-stage, .fullscreen-transform-frame > canvas { margin: 0 !important; }
+.fullscreen-transform-frame > canvas { display: block; max-width: none !important; height: auto !important; }
+.map-settings .map-center-mode { grid-column: 1 / -1; flex-direction: row; align-items: center; }
+.map-center-mode input[type="checkbox"] { width: 16px; height: 16px; min-width: 16px; flex: none; }
 .fullscreen-shell .map-caption { min-height: 38px; }
 .fullscreen-shell .render-status { margin: 2px 0; }
 .fullscreen-shell .map-toolbar { padding: 6px 0; }
@@ -1945,3 +1950,18 @@ dialog ol {
   .fullscreen-shell #quiz-run { padding: 10px; }
   .fullscreen-shell .quiz-choice { font-size: 12px; padding: 8px; }
 }
+
+.linked-map > label { display: none; }
+.linked-map { min-width: 0; }
+.bayer-editor { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 1fr); gap: 8px; }
+.bayer-editor select, .bayer-editor input { width: 100%; min-width: 0; }
+.bayer-editor .bayer-answer { grid-column: auto; }
+.exam-instructions { margin: 24px 0; padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: #101d27; }
+.exam-instructions h2 { margin-top: 0; }
+.exam-instructions p { color: #b4c1c9; line-height: 1.65; }
+.exam-instructions input { max-width: 360px; }
+[data-session-kind="E"] #level, [data-session-kind="E"] .practice-options label:has(#level) { display: none; }
+.dragging-point { cursor: grabbing; }
+.object-number { font-family: "Nightweave Symbols", system-ui, sans-serif; }
+.reference-row .object-number { font-size: 15px; }
+@media (max-width: 760px) { .exam-instructions { padding: 16px; } }

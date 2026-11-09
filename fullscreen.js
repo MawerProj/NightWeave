@@ -1,4 +1,4 @@
-import { attachMapGestures } from "./map-gestures.js?v=7";
+import { attachMapGestures } from "./map-gestures.js?v=9";
 
 let active = null;
 
@@ -32,16 +32,23 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
 
   const viewport = document.createElement("div");
   viewport.className = "fullscreen-map-viewport";
-  viewport.setAttribute("aria-label", "Область карты; двумя пальцами можно перемещать карту и менять масштаб");
+  viewport.setAttribute("aria-label", "Область карты; двумя пальцами можно перемещать, масштабировать и поворачивать карту");
   stage.before(viewport);
-  move(stage, viewport);
-  const originalWidth = stage.style.width;
+  const frame = document.createElement("div");
+  frame.className = "fullscreen-transform-frame";
+  viewport.append(frame);
+  move(stage, frame);
+  const originalStyle = Object.fromEntries(["width", "position", "left", "top", "transform", "transformOrigin"].map(key => [key, stage.style[key]]));
+  const originalRotation = stage.dataset.mapViewRotation;
   const originalOverflow = document.body.style.overflow;
   document.body.style.overflow = "hidden";
   let zoom = 1, native = false, closed = false;
+  let rotation = 0, stageWidth = 0, stageHeight = 0;
   let panning = false, drag = null;
   const removeGestures = attachMapGestures({
     viewport, stage, getZoom: () => zoom, setZoom: changeZoom,
+    getRotation: () => rotation, setRotation: value => { rotation = value; fit(); },
+    getStageSize: () => ({ width: stageWidth, height: stageHeight }),
     captureInteraction, canStartGesture,
     onSingleTouchEnd: () => { if (!panning) onSingleTouchEnd?.(); },
     onStart: () => { drag = null; },
@@ -86,7 +93,13 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
     if (closed) return;
     const ratio = canvas.width / canvas.height;
     const width = Math.max(80, Math.min(viewport.clientWidth - 24, (viewport.clientHeight - 24) * ratio));
-    stage.style.width = `${width * zoom}px`;
+    stageWidth = width * zoom;
+    stageHeight = stageWidth / ratio;
+    const angle = rotation * Math.PI / 180;
+    frame.style.width = `${Math.abs(stageWidth * Math.cos(angle)) + Math.abs(stageHeight * Math.sin(angle))}px`;
+    frame.style.height = `${Math.abs(stageWidth * Math.sin(angle)) + Math.abs(stageHeight * Math.cos(angle))}px`;
+    Object.assign(stage.style, { width: `${stageWidth}px`, position: "absolute", left: "50%", top: "50%", transform: `translate(-50%, -50%) rotate(${rotation}deg)`, transformOrigin: "center" });
+    stage.dataset.mapViewRotation = String(rotation);
     output.value = `${Math.round(zoom * 100)}%`;
     output.textContent = output.value;
     zoomButtons[0].disabled = zoom <= 1;
@@ -98,7 +111,7 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
   }
   zoomButtons[0].onclick = () => changeZoom(zoom - 0.25);
   zoomButtons[1].onclick = () => changeZoom(zoom + 0.25);
-  shell.querySelector("[data-reset]").onclick = () => { changeZoom(1); viewport.scrollTop = viewport.scrollLeft = 0; };
+  shell.querySelector("[data-reset]").onclick = () => { rotation = 0; changeZoom(1); viewport.scrollTop = viewport.scrollLeft = 0; };
   const settingsButton = shell.querySelector("[data-settings]");
   const settingsHidden = settings?.hidden;
   let drawer;
@@ -149,7 +162,9 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
     document.removeEventListener("keydown", keydown, true);
     document.removeEventListener("fullscreenchange", fullscreenChanged);
     if (document.fullscreenElement === shell) document.exitFullscreen?.().catch(() => {});
-    stage.style.width = originalWidth;
+    Object.assign(stage.style, originalStyle);
+    if (originalRotation === undefined) delete stage.dataset.mapViewRotation;
+    else stage.dataset.mapViewRotation = originalRotation;
     for (const { element, anchor } of moved.reverse()) anchor.replaceWith(element);
     viewport.remove();
     if (settings) settings.hidden = settingsHidden;

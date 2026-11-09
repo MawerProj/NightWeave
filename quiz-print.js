@@ -1,8 +1,8 @@
-import { currentSiteUrl } from "./site-url.js?v=7";
-import { createPdf } from "./pdf.js?v=7";
-import { drawLocator } from "./locator.js?v=7";
-import { quizUrl } from "./quiz-model.js?v=7";
-import { drawPrintQr } from "./print-qr.js?v=7";
+import { currentSiteUrl } from "./site-url.js?v=9";
+import { createPdf } from "./pdf.js?v=9";
+import { drawLocator } from "./locator.js?v=9";
+import { quizUrl } from "./quiz-model.js?v=9";
+import { drawPrintQr } from "./print-qr.js?v=9";
 
 const WIDTH = 1654,
   HEIGHT = 2339,

@@ -7,7 +7,7 @@ export function siteBaseUrl(current = currentSiteUrl()) {
 }
 
 export function pageUrl(kind, current = currentSiteUrl()) {
-  return new URL(kind === "Q" ? "quiz.html" : "./", siteBaseUrl(current));
+  return new URL(kind === "Q" ? "quiz.html" : kind === "E" ? "exam.html" : "./", siteBaseUrl(current));
 }
 
 export function localProgressUrl(entry, current = currentSiteUrl()) {

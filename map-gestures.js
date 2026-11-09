@@ -1,4 +1,6 @@
-export function attachMapGestures({ viewport, stage, getZoom, setZoom, captureInteraction, onStart, canStartGesture, onSingleTouchEnd }) {
+import { rotateOffset } from "./map-view.js?v=9";
+
+export function attachMapGestures({ viewport, stage, getZoom, setZoom, getRotation = () => 0, setRotation = () => {}, getStageSize, captureInteraction, onStart, canStartGesture, onSingleTouchEnd }) {
   const touches = new Map();
   let consumed = false, baseline = null, rollback = null;
 
@@ -8,17 +10,23 @@ export function attachMapGestures({ viewport, stage, getZoom, setZoom, captureIn
       x: (a.x + b.x) / 2,
       y: (a.y + b.y) / 2,
       distance: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)),
+      angle: Math.atan2(b.y - a.y, b.x - a.x),
     };
   }
 
   function rebase() {
     const center = metrics();
     const rect = stage.getBoundingClientRect();
+    const size = getStageSize?.() || rect;
+    const [x, y] = rotateOffset(center.x - rect.left - rect.width / 2, center.y - rect.top - rect.height / 2, -getRotation());
     baseline = {
       ...center,
       zoom: getZoom(),
-      anchorX: rect.width ? (center.x - rect.left) / rect.width : 0.5,
-      anchorY: rect.height ? (center.y - rect.top) / rect.height : 0.5,
+      rotation: getRotation(),
+      turned: 0,
+      lastAngle: center.angle,
+      anchorX: size.width ? x / size.width : 0,
+      anchorY: size.height ? y / size.height : 0,
     };
   }
 
@@ -58,10 +66,15 @@ export function attachMapGestures({ viewport, stage, getZoom, setZoom, captureIn
     block(event);
     if (touches.size < 2) return;
     const center = metrics();
+    baseline.turned += Math.atan2(Math.sin(center.angle - baseline.lastAngle), Math.cos(center.angle - baseline.lastAngle)) * 180 / Math.PI;
+    baseline.lastAngle = center.angle;
+    setRotation(baseline.rotation + baseline.turned);
     setZoom(baseline.zoom * center.distance / baseline.distance);
     const rect = stage.getBoundingClientRect();
-    viewport.scrollLeft += rect.left + baseline.anchorX * rect.width - center.x;
-    viewport.scrollTop += rect.top + baseline.anchorY * rect.height - center.y;
+    const size = getStageSize?.() || rect;
+    const [x, y] = rotateOffset(baseline.anchorX * size.width, baseline.anchorY * size.height, getRotation());
+    viewport.scrollLeft += rect.left + rect.width / 2 + x - center.x;
+    viewport.scrollTop += rect.top + rect.height / 2 + y - center.y;
   }
 
   function up(event) {

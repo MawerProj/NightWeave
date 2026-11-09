@@ -210,8 +210,8 @@ export function scoreAnswer(target, answer, projection, tolerance) {
 export const referencePoints = [
   { id: "spring", name: "♈ Весеннее равноденствие", ra: 0, dec: 0 },
   { id: "autumn", name: "♎ Осеннее равноденствие", ra: 180, dec: 0 },
-  { id: "summer", name: "☀ Летнее солнцестояние", ra: 90, dec: 23.4393 },
-  { id: "winter", name: "❄ Зимнее солнцестояние", ra: 270, dec: -23.4393 },
+  { id: "summer", name: "♋ Летнее солнцестояние", ra: 90, dec: 23.4393 },
+  { id: "winter", name: "♑ Зимнее солнцестояние", ra: 270, dec: -23.4393 },
   { id: "north", name: "Северный полюс мира", ra: 0, dec: 90 },
   { id: "south", name: "Южный полюс мира", ra: 0, dec: -90 },
   {

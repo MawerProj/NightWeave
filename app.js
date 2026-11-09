@@ -1,5 +1,9 @@
-import { currentSiteUrl } from "./site-url.js?v=7";
-import { openFullscreen } from "./fullscreen.js?v=7";
+import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=9";
+import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=9";
+import { nearestPlacedPoint } from "./point-drag.js?v=9";
+import { currentSiteUrl } from "./site-url.js?v=9";
+import { canvasPoint } from "./map-view.js?v=9";
+import { openFullscreen } from "./fullscreen.js?v=9";
 import {
   RAD,
   clamp,
@@ -12,7 +16,7 @@ import {
   boundaryCrossings,
   greatCircles,
   angularDistance,
-} from "./astro.js?v=7";
+} from "./astro.js?v=9";
 import {
   LEVELS,
   selectTargets,
@@ -23,22 +27,22 @@ import {
   scoreDrawing,
   sandboxPoints,
   sortMessier,
-} from "./training.js?v=7";
-import { GREEK_LETTERS, bayerLabel } from "./bayer.js?v=7";
-import { SkyRenderer, mapHeight } from "./renderer.js?v=7";
+} from "./training.js?v=9";
+import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=9";
+import { SkyRenderer, mapHeight } from "./renderer.js?v=9";
 import {
   createVariant,
   validateConfig,
   DEFAULT_CONFIG,
   variantSummary,
-  variantUrl,
+  variantUrl as taskUrl,
   readVariantUrl,
-} from "./variant.js?v=7";
-import { Atlas } from "./atlas.js?v=7";
-import { makePacket, renderPacket } from "./print.js?v=7";
-import { downloadBlob } from "./pdf.js?v=7";
-import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=7";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=7";
+} from "./variant.js?v=9";
+import { Atlas } from "./atlas.js?v=9";
+import { makePacket, renderPacket } from "./print.js?v=9";
+import { downloadBlob } from "./pdf.js?v=9";
+import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=9";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=9";
 
 const $ = (id) => document.getElementById(id);
 const SIZE = 1000,
@@ -49,7 +53,10 @@ const sky = $("sky"),
 const context = sky.getContext("2d"),
   overlay = marks.getContext("2d");
 const renderer = new SkyRenderer();
-const STORAGE = "nightweave-variant-v3";
+const KIND = document.body.dataset.sessionKind || "T";
+const isExam = KIND === "E";
+const STORAGE = isExam ? "nightweave-exam-v1" : "nightweave-variant-v3";
+let draggingMark;
 const numericFields = [
   "fov",
   "roll",
@@ -98,7 +105,7 @@ let catalog,
   learned = false;
 let variant, freeAttempt;
 let state = {
-  mode: "messier",
+  mode: "reference",
   config: null,
   targets: [],
   answers: {},
@@ -127,6 +134,8 @@ const nextFrame = () =>
   new Promise((resolve) =>
     (globalThis.requestAnimationFrame || setTimeout)(resolve),
   );
+
+const variantUrl = (url, config, mode) => taskUrl(url, config, mode, KIND);
 
 function storage(key, fallback) {
   try {
@@ -189,10 +198,10 @@ function readConfig() {
   const year = new Date(config.date).getUTCFullYear();
   if (!Number.isFinite(year) || year < 1900 || year > 2100)
     throw new Error("Выбери дату между 1900 и 2100 годом.");
-  const code = parseCode($("seed").value.trim() || numericSeed(), "T");
-  if (code.kind !== "T") throw new Error("Открой квиз через общее поле seed выше.");
+  const code = parseCode($("seed").value.trim() || numericSeed(), KIND);
+  if (code.kind !== KIND) throw new Error("Открой этот код через общее поле seed выше.");
   config.seed = code.seed;
-  $("seed").value = seedCode("T", config.seed);
+  $("seed").value = seedCode(KIND, config.seed);
   config.horizon = $("horizon").checked;
   config.bayerTest = $("bayer-test").checked;
   config.edges = $("edges").checked;
@@ -202,12 +211,13 @@ function readConfig() {
     toast("Поле гномонической проекции ограничено 150°.");
   }
   config.maps = [1, 2, 3].map((index) => ({
+    randomCenter: $(`map-${index}-random-center`).checked,
     shape: $(`map-${index}-shape`).value,
     aspect: Number($(`map-${index}-aspect`).value),
     projection: $(`map-${index}-projection`).value,
     fov: Number($(`map-${index}-fov`).value),
-    ra: Number($(`map-${index}-ra`).value) * 15,
-    dec: Number($(`map-${index}-dec`).value),
+    ra: $(`map-${index}-random-center`).checked ? (variant?.base.maps[index - 1].ra ?? DEFAULT_CONFIG.maps[index - 1].ra) : Number($(`map-${index}-ra`).value) * 15,
+    dec: $(`map-${index}-random-center`).checked ? (variant?.base.maps[index - 1].dec ?? DEFAULT_CONFIG.maps[index - 1].dec) : Number($(`map-${index}-dec`).value),
     roll: Number($(`map-${index}-roll`).value),
   }));
   return validateConfig(config);
@@ -236,6 +246,7 @@ function writeConfig(config) {
   ])
     $(id).checked = config[key];
   config.maps?.forEach((map, index) => {
+    $(`map-${index + 1}-random-center`).checked = map.randomCenter !== false;
     for (const key of [
       "shape",
       "aspect",
@@ -248,8 +259,16 @@ function writeConfig(config) {
       $(`map-${index + 1}-${key}`).value =
         key === "ra" ? map.ra / 15 : map[key];
   });
-  $("variant-seed").value = seedCode("T", config.seed);
-  $("seed").value = seedCode("T", config.seed);
+  $("variant-seed").value = seedCode(KIND, config.seed);
+  $("seed").value = seedCode(KIND, config.seed);
+  for (const [index, map] of (config.maps || []).entries()) {
+    for (const key of ["ra", "dec"]) $(`map-${index + 1}-${key}`).readOnly = map.randomCenter !== false;
+    if (map.randomCenter !== false && variant?.seed === config.seed) {
+      const [ra, dec] = coordinates(projector(variant.configs[index]).basis.forward);
+      $(`map-${index + 1}-ra`).value = (ra / 15).toFixed(5);
+      $(`map-${index + 1}-dec`).value = dec.toFixed(5);
+    }
+  }
   updateFrame();
 }
 function updateFrame() {
@@ -258,6 +277,7 @@ function updateFrame() {
   document.querySelectorAll(".hor-field").forEach((e) => (e.hidden = !horizon));
 }
 function tolerance() {
+  if (isExam) return EXAM_TOLERANCE;
   return Math.max(
     0.3,
     (state.config.fov / 30) * LEVELS[state.config.level].tolerance,
@@ -277,9 +297,9 @@ function updateVariantUrl() {
 function updateVariantSummary() {
   if (!variant) return;
   const summary = variantSummary(variant);
-  $("variant-number").textContent = seedCode("T", variant.seed);
+  $("variant-number").textContent = seedCode(KIND, variant.seed);
   $("variant-total").textContent = `${summary.points} / ${summary.maximum}`;
-  $("variant-status").textContent = summary.complete
+  $("variant-status").textContent = isExam ? (summary.complete ? "Экзамен завершён · ответы открыты для разбора" : "Ответы ещё не проверены · результат появится после завершения") : summary.complete
     ? "Все задания проверены"
     : `Проверено ${summary.rows.filter((r) => r.checked).length} из 5 заданий`;
   $("variant-scores").innerHTML = summary.rows
@@ -288,9 +308,17 @@ function updateVariantSummary() {
         `<div><span>${row.label}</span><strong>${row.checked ? row.points : "—"} / ${row.maximum}</strong></div>`,
     )
     .join("");
+  if (isExam) {
+    $("check-variant").disabled = summary.complete;
+    $("export-answers").disabled = !summary.complete;
+    $("exam-name").value = variant.participantName || "";
+    $("exam-name").disabled = summary.complete;
+    $("catalog-nav").disabled = !summary.complete;
+    $("clear").disabled = summary.complete;
+  }
 }
 function switchMode(mode) {
-  if (!variant) return;
+  if (!variant || (isExam && mode === "sandbox")) return;
   const fullscreenResult = document.querySelector("[data-fullscreen-result]");
   if (fullscreenResult) fullscreenResult.textContent = "";
   state.pending = null;
@@ -312,6 +340,8 @@ function switchMode(mode) {
   projection = projector(state.config);
   results = [];
   drawing = null;
+  draggingMark = null;
+  sky.classList.remove("dragging-point");
   $("results").hidden = true;
   $("grid").checked = false;
   $("guides").checked = false;
@@ -326,20 +356,20 @@ function newTask(changeSeed = false, supplied = null) {
     if (changeSeed) $("seed").value = numericSeed();
     const config = supplied ? validateConfig(supplied) : readConfig();
     const mode = state.mode;
-    variant = createVariant(catalog, config);
+    variant = isExam ? createExam(catalog, config.seed) : createVariant(catalog, config);
     freeAttempt = null;
     writeConfig(variant.base);
     learned = false;
     switchMode(mode);
     toast(
-      `Seed ${seedCode("T", variant.seed)} создан: ${variant.attempts.stars.targets.length} звезда, ${variant.attempts.messier.targets.length} объекта Мессье.`,
+      `Seed ${seedCode(KIND, variant.seed)} создан: ${variant.attempts.stars.targets.length} звезда, ${variant.attempts.messier.targets.length} объекта Мессье.`,
     );
   } catch (error) {
     toast(error.message);
   }
 }
 function storeModeScore(mode, modeResults, line, record = true) {
-  if (!variant || mode === "sandbox") return;
+  if (!variant || mode === "sandbox" || isExam) return;
   if (mode === "reference") {
     variant.scores.points = modeResults
       .filter((r) => !r.target.id.startsWith("edge-"))
@@ -362,6 +392,17 @@ function storeModeScore(mode, modeResults, line, record = true) {
   save();
 }
 function checkWholeVariant() {
+  if (isExam) {
+    if (variant.examReport) return;
+    variant.participantName = $("exam-name").value.trim();
+    variant.examReport = gradeExam(variant, catalog);
+    for (const attempt of Object.values(variant.attempts)) attempt.checked = true;
+    const summary = variant.examReport;
+    recordProgress({ id: "E:" + variant.seed, kind: "E", seed: variant.seed, score: summary.points, maximum: 120, label: "Экзамен · 5 заданий", url: variantUrl(currentSiteUrl(), variant.base, state.mode) });
+    switchMode(state.mode);
+    $("variant-summary").scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
   const active = state.mode;
   for (const mode of ["reference", "stars", "messier", "lines"]) {
     state = variant.attempts[mode];
@@ -438,6 +479,7 @@ function drawPath(ctx, path, color, width = 1, dash = []) {
   ctx.setLineDash([]);
 }
 function drawGuides() {
+  if (isExam && !variant.examReport) { $("grid").checked = false; $("guides").checked = false; }
   if (!baseImage) return;
   context.putImageData(baseImage, 0, 0);
   const paper = state.config.display === "paper";
@@ -469,14 +511,18 @@ function drawGuides() {
       for (const path of figure.paths)
         drawPath(context, path, paper ? "#777" : "#8eb8cb70", 1.3);
 }
-function marker(ctx, point, label, color, correct = false) {
+function marker(ctx, point, label, color, correct = false, target = null) {
   if (!point) return;
   const [x, y] = pixel(point);
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  if (correct) {
+  if (target && (state.mode === "reference" || target.kind === "reference")) {
+    drawReferenceIcon(ctx, x, y, target, color);
+  } else if (state.mode === "messier" || target?.kind === "messier") {
+    ctx.moveTo(x, y - 9); ctx.lineTo(x + 8, y + 6); ctx.lineTo(x - 8, y + 6); ctx.closePath();
+  } else if (correct || state.mode === "stars") {
     ctx.moveTo(x - 7, y);
     ctx.lineTo(x + 7, y);
     ctx.moveTo(x, y - 7);
@@ -518,7 +564,7 @@ function marker(ctx, point, label, color, correct = false) {
   ctx.fillStyle = color;
   ctx.fillText(label, tx, ty);
 }
-function pair(user, correct, label) {
+function pair(user, correct, label, target = null) {
   if (user && correct) {
     const a = pixel(user),
       b = pixel(correct);
@@ -532,7 +578,7 @@ function pair(user, correct, label) {
     overlay.stroke();
     overlay.setLineDash([]);
   }
-  if (user) marker(overlay, user, label, "#e19759");
+  if (user) marker(overlay, user, label, "#e19759", false, target);
   if (correct)
     marker(
       overlay,
@@ -540,6 +586,7 @@ function pair(user, correct, label) {
       label,
       state.config.display === "paper" ? "#216342" : "#d5ec95",
       true,
+      target,
     );
 }
 function drawMarks() {
@@ -570,7 +617,7 @@ function drawMarks() {
           state.checked && r?.target
             ? projection.project(r.target.ra, r.target.dec)
             : null;
-      pair(projection.project(entry.ra, entry.dec), correct, entry.label || entry.name);
+      pair(projection.project(entry.ra, entry.dec), correct, entry.label || entry.name, results[i]?.target || (entry.kind === "reference" ? resolveObject(catalog, "reference", entry.name, state.config)[0] : null));
     });
     if (state.pending)
       marker(overlay, projection.project(...state.pending), "?", "#ffb480");
@@ -586,7 +633,8 @@ function drawMarks() {
     pair(
       user,
       state.checked ? projection.project(expected.ra, expected.dec) : null,
-      state.mode === "messier" ? target.name : String(index + 1),
+      state.mode === "reference" ? "" : state.mode === "messier" ? target.name : String(index + 1),
+      target,
     );
   });
 }
@@ -606,7 +654,7 @@ function renderObjects() {
   list.hidden = ["lines", "sandbox"].includes(state.mode);
   $("line-tools").hidden = state.mode !== "lines";
   $("sandbox-tools").hidden = state.mode !== "sandbox";
-  $("guides").disabled = state.mode === "lines";
+  $("guides").disabled = state.mode === "lines" || (isExam && !variant.examReport);
   if (state.mode === "sandbox") {
     renderEntries();
     return;
@@ -619,8 +667,9 @@ function renderObjects() {
       "object-row" + (state.selected === index ? " selected" : "");
     const select = document.createElement("button");
     select.className = "object-select";
+    if (state.mode === "reference") row.classList.add("reference-row");
     select.setAttribute("aria-pressed", String(state.selected === index));
-    select.innerHTML = `<span class="object-number">${String(index + 1).padStart(2, "0")}</span><span class="object-name">${escape(target.name)}</span><span class="object-state">${answer && !answer.draft ? (answer.absent ? "—" : "✓") : ""}</span>`;
+    select.innerHTML = `<span class="object-number">${state.mode === "reference" ? referenceSymbol(target) : String(index + 1).padStart(2, "0")}</span><span class="object-name">${escape(target.name)}</span><span class="object-state">${answer && !answer.draft ? (answer.absent ? "—" : "✓") : ""}</span>`;
     select.onclick = () => {
       state.selected = index;
       renderObjects();
@@ -629,7 +678,7 @@ function renderObjects() {
         sky.scrollIntoView({ behavior: "smooth", block: "center" });
     };
     row.append(select);
-    if (["stars", "messier"].includes(state.mode)) {
+    if (["stars", "messier"].includes(state.mode) && (!isExam || variant.examReport)) {
       const info = document.createElement("button");
       info.className = "object-info";
       info.textContent = "ⓘ";
@@ -669,7 +718,19 @@ function renderObjects() {
         };
         save();
       };
-      row.append(input);
+      const controls = document.createElement("div");
+      controls.className = "bayer-editor";
+      const greek = document.createElement("select");
+      greek.setAttribute("aria-label", `Вставить греческую букву: ${target.name}`);
+      greek.innerHTML = '<option value="">Буква…</option>' + GREEK_LETTERS.map(([symbol, name]) => `<option value="${symbol}">${symbol} · ${name}</option>`).join("");
+      greek.disabled = state.checked;
+      greek.onchange = () => {
+        if (!greek.value) return;
+        input.value = greek.value + " " + input.value.replace(/^[α-ω]\s*/, "");
+        input.oninput(); input.focus(); input.setSelectionRange(input.value.length, input.value.length);
+      };
+      controls.append(greek, input);
+      row.append(controls);
     }
     list.append(row);
   });
@@ -819,11 +880,11 @@ function updateProgress() {
     ? "✧"
     : percentage + "%";
   $("completion-bar").style.width = percentage + "%";
-  $("check").disabled = state.checked;
-  $("check").textContent = state.checked
+  $("check").disabled = isExam || state.checked;
+  $("check").textContent = isExam ? (variant.examReport ? "Экзамен проверен ✓" : "Проверка всех заданий — в конце") : state.checked
     ? "Ответ проверен ✓"
     : "Проверить ответ ↗";
-  $("scoring-hint").textContent =
+  $("scoring-hint").textContent = isExam ? "Экзамен · общий результат из 120 · допуск 4°" :
     state.mode === "lines"
       ? "Оцениваем полноту и точность штрихов"
       : state.mode === "sandbox"
@@ -848,7 +909,7 @@ function renderAll() {
   };
   $("view-label").textContent =
     `${names[state.config.projection]} · ${state.config.fov}°`;
-  $("variant-label").textContent = seedCode("T", state.config.seed);
+  $("variant-label").textContent = seedCode(KIND, state.config.seed);
   $("observer-label").textContent =
     state.config.frame === "horizon"
       ? `${state.config.latitude}° / ${state.config.longitude}° · UTC`
@@ -858,7 +919,7 @@ function renderAll() {
       ? "Нажми на карту, затем введи подпись."
       : state.mode === "lines"
         ? "Веди по звёздам мышью, пальцем или стилусом."
-        : "Выбери объект в списке и отметь его положение.";
+        : "Нажми, чтобы поставить точку. Зажми любую поставленную точку и перетащи, чтобы поправить.";
   $("sandbox-type").value = state.sandboxType;
   const [ra, dec] = coordinates(projection.basis.forward);
   for (const [name, direction, sign] of [
@@ -893,13 +954,8 @@ function renderAll() {
   drawMarks();
 }
 function normalizedEvent(event) {
-  const rect = sky.getBoundingClientRect();
-  return [
-    (((event.clientX - rect.left) / rect.width) * SIZE - CENTER) / RADIUS,
-    (((event.clientY - rect.top) / rect.height) * marks.height -
-      marks.height / 2) /
-      RADIUS,
-  ];
+  const [x, y] = canvasPoint(sky, event);
+  return [(x - CENTER) / RADIUS, (y - marks.height / 2) / RADIUS];
 }
 function eventCoordinate(event) {
   return projection.inverse(...normalizedEvent(event));
@@ -931,16 +987,31 @@ function place(coordinate, focusInput = true) {
   }
   updateAnswer();
 }
+function placedMark(event) {
+  if (state.mode === "lines") return null;
+  const items = state.mode === "sandbox" ? state.entries : Object.values(state.answers);
+  const rect = sky.getBoundingClientRect();
+  const scale = Math.hypot(rect.width, rect.height) / Math.hypot(sky.width, sky.height);
+  const radius = (event.pointerType === "touch" ? 22 : 12) / Math.max(0.01, scale) / RADIUS;
+  return nearestPlacedPoint(items, normalizedEvent(event), (ra, dec) => projection.project(ra, dec), radius);
+}
 function pointerDown(event) {
   if (event.pointerType === "pen") lastPenContact = performance.now();
   if (event.pointerType === "touch" && performance.now() - lastPenContact < 800)
     return;
-  if (drawing && drawing.id !== event.pointerId) return;
+  if ((drawing && drawing.id !== event.pointerId) || draggingMark) return;
   if (event.isPrimary === false || state.checked) return;
   event.preventDefault();
   sky.focus({ preventScroll: true });
   const coordinate = eventCoordinate(event);
   if (!coordinate) return;
+  const mark = placedMark(event);
+  if (mark) {
+    draggingMark = { id: event.pointerId, mark, original: { ra: mark.ra, dec: mark.dec } };
+    sky.setPointerCapture?.(event.pointerId);
+    sky.classList.add("dragging-point");
+    return;
+  }
   if (
     state.mode === "lines" &&
     ($("draw-tool").value === "freehand" || event.pointerType === "pen")
@@ -960,6 +1031,11 @@ function pointerMove(event) {
   $("cursor-coords").textContent = c
     ? `RA ${(c[0] / 15).toFixed(2)}h · DEC ${c[1].toFixed(1)}°`
     : "ВНЕ СНИМКА";
+  if (draggingMark?.id === event.pointerId) {
+    if (c) { draggingMark.mark.ra = c[0]; draggingMark.mark.dec = c[1]; drawMarks(); }
+    event.preventDefault();
+    return;
+  }
   if (!drawing || drawing.id !== event.pointerId) return;
   const coalesced = event.getCoalescedEvents?.();
   for (const sample of coalesced?.length ? coalesced : [event]) {
@@ -977,6 +1053,13 @@ function pointerMove(event) {
   drawMarks();
 }
 function pointerUp(event) {
+  if (draggingMark?.id === event.pointerId) {
+    draggingMark = null;
+    sky.classList.remove("dragging-point");
+    if (sky.hasPointerCapture?.(event.pointerId)) sky.releasePointerCapture(event.pointerId);
+    updateAnswer();
+    return;
+  }
   if (!drawing || drawing.id !== event.pointerId) return;
   if (drawing.screen.length > 1) {
     const simplified = simplifyStroke(drawing.screen, 0.004),
@@ -1037,9 +1120,7 @@ function calculateResults() {
       !answer.absent &&
       !answer.draft
     ) {
-      const normalize = (value) =>
-        (value || "").toLowerCase().replace(/[\s.]/g, "");
-      const correct = normalize(answer.bayer) === normalize(target.bayer);
+      const correct = bayerMatches(answer.bayer, target.bayer, catalog);
       result.points = Math.round(result.points * 0.8 + (correct ? 20 : 0));
       result.reason += correct ? " · Байер ✓" : ` · Байер: ${target.bayer}`;
     }
@@ -1047,6 +1128,20 @@ function calculateResults() {
   });
 }
 function checkAnswer(record = true) {
+  if (isExam) {
+    if (!variant.examReport) return;
+    const report = variant.examReport;
+    results = report.details[state.mode] || [];
+    const row = report.rows.find(row => row.id === state.mode);
+    const score = state.mode === "reference" ? report.rows[0].points + report.rows[1].points : row.points;
+    const maximum = state.mode === "reference" ? 24 : row.maximum;
+    $("results").innerHTML = `<p class="eyebrow">ЭКЗАМЕН · РАЗБОР</p><h2>${score} / ${maximum} баллов</h2><p>Итог экзамена: ${report.points} / 120. Оранжевые отметки — твои; зелёные — правильные. Пунктир показывает смещение.</p>` + (state.mode === "lines" ? `<p>Полнота рисунка: ${Math.round(report.drawing.coverage * 100)}%. Точность: ${Math.round(report.drawing.precision * 100)}%.</p>` : `<div class="table-scroll"><table><thead><tr><th>Объект</th><th>Результат</th><th>Баллы</th></tr></thead><tbody>${results.map(r => `<tr><td>${escape(r.target.name)}</td><td>${escape(r.reason)}</td><td>${r.points} / ${r.maximum}</td></tr>`).join("")}</tbody></table></div>`);
+    $("results").hidden = false;
+    const fullscreenResult = document.querySelector("[data-fullscreen-result]");
+    if (fullscreenResult) fullscreenResult.textContent = `${score} / ${maximum} баллов`;
+    updateAnswer();
+    return;
+  }
   if (state.mode === "sandbox" && !state.entries.length) {
     toast("Сначала добавь хотя бы одну подпись.");
     return;
@@ -1067,7 +1162,7 @@ function checkAnswer(record = true) {
   const fullscreenResult = document.querySelector("[data-fullscreen-result]");
   if (fullscreenResult) fullscreenResult.textContent = `${score} / ${maximum} баллов`;
   $("results").innerHTML =
-    `<div class="results-top"><div><p class="eyebrow">РАЗБОР ЗАДАНИЯ</p><h3>${percent >= 85 ? "Небо становится знакомым" : "Ориентир для следующей попытки"}</h3><p>Seed ${escape(seedCode("T", state.config.seed))} · ${LEVELS[state.config.level].label}${learned ? " · каталог использован как подсказка" : ""}</p></div><div class="score">${score}<span style="font-size:14px;color:#92a1aa"> / ${maximum}</span></div></div><div class="legend"><span class="user">○ Твой ответ</span><span class="correct">＋ Правильный ответ</span><span>┄ Смещение</span></div>${line ? `<p>Полнота рисунка: ${Math.round(line.coverage * 100)}%. Точность штрихов: ${Math.round(line.precision * 100)}%. Пропуски и лишние линии снижают оценку; направление штриха не влияет.</p>` : `<div class="table-scroll"><table><thead><tr><th>Объект</th><th>Результат</th><th>Очки</th></tr></thead><tbody>${results.map((r, i) => `<tr><td>${r.target ? `<button class="subtle result-object" data-result="${i}">${escape(r.target.name)} ⓘ</button>` : escape(r.entry?.name || "—")}${r.target?.bayer ? `<br> <span class="mono">${escape(r.target.bayer)}</span>` : ""}</td><td>${escape(r.reason)}</td><td>${r.points} / 100</td></tr>`).join("")}</tbody></table></div><p>Допуск ${tolerance().toFixed(1)}°. Верное отсутствие — 100 очков; пропуск — 0. Повтор одной подписи в песочнице не засчитывается.</p>`}<button class="secondary" id="retry">Повторить задания</button>`;
+    `<div class="results-top"><div><p class="eyebrow">РАЗБОР ЗАДАНИЯ</p><h3>${percent >= 85 ? "Небо становится знакомым" : "Ориентир для следующей попытки"}</h3><p>Seed ${escape(seedCode(KIND, state.config.seed))} · ${LEVELS[state.config.level].label}${learned ? " · каталог использован как подсказка" : ""}</p></div><div class="score">${score}<span style="font-size:14px;color:#92a1aa"> / ${maximum}</span></div></div><div class="legend"><span class="user">○ Твой ответ</span><span class="correct">＋ Правильный ответ</span><span>┄ Смещение</span></div>${line ? `<p>Полнота рисунка: ${Math.round(line.coverage * 100)}%. Точность штрихов: ${Math.round(line.precision * 100)}%. Пропуски и лишние линии снижают оценку; направление штриха не влияет.</p>` : `<div class="table-scroll"><table><thead><tr><th>Объект</th><th>Результат</th><th>Очки</th></tr></thead><tbody>${results.map((r, i) => `<tr><td>${r.target ? `<button class="subtle result-object" data-result="${i}">${escape(r.target.name)} ⓘ</button>` : escape(r.entry?.name || "—")}${r.target?.bayer ? `<br> <span class="mono">${escape(r.target.bayer)}</span>` : ""}</td><td>${escape(r.reason)}</td><td>${r.points} / 100</td></tr>`).join("")}</tbody></table></div><p>Допуск ${tolerance().toFixed(1)}°. Верное отсутствие — 100 очков; пропуск — 0. Повтор одной подписи в песочнице не засчитывается.</p>`}<button class="secondary" id="retry">Повторить задания</button>`;
   $("results").hidden = false;
   $("retry").onclick = clearAnswers;
   document
@@ -1092,6 +1187,7 @@ function checkAnswer(record = true) {
   }
 }
 function clearAnswers() {
+  if (isExam && variant.examReport) return;
   state.answers = {};
   state.strokes = [];
   state.entries = [];
@@ -1111,6 +1207,7 @@ function clearAnswers() {
   updateAnswer();
 }
 async function exportPdf(answer = false) {
+  if (isExam && answer && !variant.examReport) return;
   const buttons = [$("export-pdf"), $("export-answers")];
   buttons.forEach((b) => (b.disabled = true));
   try {
@@ -1135,6 +1232,7 @@ async function exportPdf(answer = false) {
     toast("Не удалось создать PDF: " + error.message);
   } finally {
     buttons.forEach((b) => (b.disabled = false));
+    updateVariantSummary();
   }
 }
 function snapshot() {
@@ -1148,19 +1246,34 @@ function snapshot() {
 }
 function showHistory() { showProgress(openDialog); }
 function bindEvents() {
+  if (isExam) {
+    $("exam-name").oninput = () => { if (variant && !variant.examReport) { variant.participantName = $("exam-name").value; save(); } };
+    document.querySelector('[data-mode="sandbox"]').hidden = true;
+    $("settings-toggle").hidden = true;
+    $("level").closest("label").hidden = true;
+    $("level-description").hidden = true;
+    for (const id of ["level", "bayer-test", "star-count", "count", "grid", "guides", "random-view", "apply"]) $(id).disabled = true;
+    $("pdf-scope").value = "full";
+    $("pdf-scope").disabled = true;
+  }
+  for (const index of [1, 2, 3]) $(`map-${index}-random-center`).onchange = () => {
+    for (const key of ["ra", "dec"]) $(`map-${index}-${key}`).readOnly = $(`map-${index}-random-center`).checked;
+  };
   $("expand-map").onclick = () => openFullscreen({
     content: document.querySelector(".lab-body"), stage: $("map-stage"), canvas: sky,
-    title: "Тренажёр неба", navigation: document.querySelector(".tabs"), settings: $("settings"),
+    title: isExam ? "Экзамен" : "Тренажёр неба", navigation: document.querySelector(".tabs"), settings: isExam ? undefined : $("settings"),
     canStartGesture: () => performance.now() - lastPenContact >= 800,
     onSingleTouchEnd: () => {
-      if (state.mode === "sandbox" && state.pending && !state.checked) sandboxInput().focus({ preventScroll: true });
+      if (state.mode === "sandbox" && state.pending && !state.checked && !draggingMark) sandboxInput().focus({ preventScroll: true });
     },
     captureInteraction: () => {
       const attempt = state;
-      const before = structuredClone({ answers: state.answers, selected: state.selected, pending: state.pending, strokes: state.strokes });
+      const before = structuredClone({ answers: state.answers, selected: state.selected, pending: state.pending, strokes: state.strokes, entries: state.entries });
       return () => {
         if (state !== attempt) return;
         drawing = null;
+        draggingMark = null;
+        sky.classList.remove("dragging-point");
         Object.assign(state, before);
         updateAnswer();
       };
@@ -1194,7 +1307,7 @@ function bindEvents() {
   $("generate-variant").onclick = () => newTask(true);
   $("load-variant").onclick = () => {
     try {
-      const seed = redirectCode($("variant-seed").value, "T");
+      const seed = redirectCode($("variant-seed").value, KIND);
       if (seed === null) return;
       $("seed").value = seed;
       newTask();
@@ -1223,7 +1336,11 @@ function bindEvents() {
   sky.addEventListener("pointermove", pointerMove);
   sky.addEventListener("pointerup", pointerUp);
   sky.addEventListener("pointercancel", () => {
+    if (draggingMark) Object.assign(draggingMark.mark, draggingMark.original);
+    draggingMark = null;
+    sky.classList.remove("dragging-point");
     drawing = null;
+    save();
     drawMarks();
   });
   sky.addEventListener("keydown", (event) => {
@@ -1331,7 +1448,7 @@ async function loadTexture() {
 async function initialize() {
   bindEvents();
   try {
-    if (routeLinkedCode("T")) return;
+    if (routeLinkedCode(KIND)) return;
     const response = await fetch("./assets/catalog.json", { cache: "no-cache" });
     if (!response.ok) throw new Error("Каталог недоступен");
     catalog = await response.json();
@@ -1342,12 +1459,15 @@ async function initialize() {
     } catch (error) {
       toast(error.message);
     }
-    const saved = storage(STORAGE, null);
+    const saved = linked ? storage(STORAGE, null) : null;
     if (
       saved?.variant?.base &&
+      saved.variant.generation === 9 &&
+      saved.variant.configs?.[0]?.ra === saved.variant.configs?.[1]?.ra &&
+      saved.variant.configs?.[0]?.dec === saved.variant.configs?.[1]?.dec &&
       (!linked ||
-        JSON.stringify(validateConfig(linked.config)) ===
-          JSON.stringify(validateConfig(saved.variant.base)))
+        (isExam ? linked.config.seed === saved.variant.seed && saved.variant.exam : JSON.stringify(validateConfig(linked.config)) ===
+          JSON.stringify(validateConfig(saved.variant.base))))
     ) {
       variant = saved.variant;
       const selectedId = variant.attempts.messier.targets[variant.attempts.messier.selected]?.id;
@@ -1361,11 +1481,11 @@ async function initialize() {
       }
       freeAttempt = saved.freeAttempt;
       writeConfig(variant.base);
-      state.mode = linked?.mode || saved.active || "messier";
+      state.mode = (isExam && linked?.mode === "sandbox") ? "reference" : linked?.mode || "reference";
       switchMode(state.mode);
     } else {
-      state.mode = linked?.mode || "messier";
-      newTask(false, linked?.config || DEFAULT_CONFIG);
+      state.mode = (isExam && linked?.mode === "sandbox") ? "reference" : linked?.mode || "reference";
+      newTask(false, linked?.config || { ...DEFAULT_CONFIG, seed: numericSeed() });
     }
     updateProgressCount();
     $("map-loading").hidden = true;

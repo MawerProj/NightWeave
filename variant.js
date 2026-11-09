@@ -4,10 +4,11 @@ import {
   randomGenerator,
   referencePoints,
   clamp,
-} from "./astro.js?v=7";
-import { selectTargets, visibleSegments } from "./training.js?v=7";
-import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=7";
-import { pageUrl } from "./site-url.js?v=7";
+  angularDistance,
+} from "./astro.js?v=9";
+import { selectTargets, visibleSegments } from "./training.js?v=9";
+import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=9";
+import { pageUrl } from "./site-url.js?v=9";
 
 export const DEFAULT_MAPS = [
   {
@@ -18,6 +19,7 @@ export const DEFAULT_MAPS = [
     ra: 84,
     dec: 20,
     roll: 0,
+    randomCenter: true,
   },
   {
     shape: "circle",
@@ -27,6 +29,7 @@ export const DEFAULT_MAPS = [
     ra: 84,
     dec: 20,
     roll: 0,
+    randomCenter: true,
   },
   {
     shape: "rectangle",
@@ -36,6 +39,7 @@ export const DEFAULT_MAPS = [
     ra: 270,
     dec: -15,
     roll: 0,
+    randomCenter: true,
   },
 ];
 export const DEFAULT_CONFIG = {
@@ -115,7 +119,7 @@ export function validateConfig(input = {}) {
     c.date = date.toISOString();
   }
   const code = parseCode(input.seed ?? c.seed, "T");
-  if (code.kind !== "T") throw new Error("Для тренажёра нужен seed с префиксом T.");
+  if (!["T", "E"].includes(code.kind)) throw new Error("Для тренажёра нужен seed с префиксом T.");
   c.seed = code.seed;
   c.date = new Date(c.date).toISOString();
   c.starCount = Math.round(c.starCount);
@@ -123,6 +127,7 @@ export function validateConfig(input = {}) {
   c.maps = DEFAULT_MAPS.map((defaults, index) => {
     const m = input.maps?.[index] || defaults;
     const result = { ...defaults };
+    if (typeof m.randomCenter === "boolean") result.randomCenter = m.randomCenter;
     if (m.shape !== undefined && !["circle", "rectangle"].includes(m.shape))
       throw new Error("Неизвестная форма карты");
     if (
@@ -153,19 +158,40 @@ export function validateConfig(input = {}) {
       result.fov = Math.min(110, result.fov);
     return result;
   });
+  c.maps[1] = { ...c.maps[0] };
   return c;
 }
 
 export function createVariant(catalog, input) {
   const base = validateConfig(input),
-    random = randomGenerator(base.seed + "maps-v3");
-  const configs = base.maps.map((map) => ({
+    random = randomGenerator(base.seed + "maps-v9");
+  const centers = [];
+  let firstConfig;
+  const configs = base.maps.map((map, index) => {
+    if (index === 1) return { ...firstConfig };
+    let center = base.frame === "horizon" ? [base.az, base.alt] : [map.ra, map.dec];
+    if (map.randomCenter) {
+      let best = null, bestDistance = -1;
+      for (let attempt = 0; attempt < 256; attempt++) {
+        const candidate = [random() * 360, Math.asin(base.frame === "horizon" ? 0.1 + random() * 0.85 : random() * 2 - 1) * 180 / Math.PI];
+        const distance = centers.length ? Math.min(...centers.map(previous => angularDistance(candidate, previous))) : 180;
+        if (distance > bestDistance) { best = candidate; bestDistance = distance; }
+        if (distance >= (index === 2 ? 70 : 30)) break;
+      }
+      center = best;
+    }
+    centers.push(center);
+    const config = {
     ...base,
     ...map,
+    ...(base.frame === "horizon" ? { az: center[0], alt: center[1] } : { ra: center[0], dec: center[1] }),
     roll: map.roll + Math.floor(random() * 360),
     seed: base.seed,
     maps: undefined,
-  }));
+    };
+    if (index === 0) firstConfig = config;
+    return config;
+  });
   const references = referencePoints.filter((point) =>
     ["spring", "autumn", "summer", "winter", "G1", "epsilon-1"].includes(
       point.id,
@@ -194,6 +220,7 @@ export function createVariant(catalog, input) {
     sandboxType: "messier",
   });
   return {
+    generation: 9,
     seed: base.seed,
     base,
     configs,
@@ -210,6 +237,7 @@ export function createVariant(catalog, input) {
 }
 
 export function variantSummary(variant) {
+  if (variant.exam) return variant.examReport || { rows: [["points", "1. Опорные точки", 12], ["edges", "2. Пересечения с краем", 12], ["stars", "3. Имена звёзд", 42], ["messier", "4. Объекты Мессье", 36], ["lines", "5. Фигуры созвездий", 16], ["symbols", "Крестики и треугольники", 1], ["name", "Фамилия И. О.", 1]].map(([id, label, maximum]) => ({ id, label, maximum, points: 0, checked: false })), points: 0, maximum: 120, complete: false };
   const definitions = [
     ["points", "1. Опорные точки", variant.references.length * 100],
     ["edges", "2. Пересечения с краем", variant.edges.length * 100],
@@ -236,19 +264,19 @@ export function variantSummary(variant) {
   };
 }
 
-export function variantUrl(url, config, mode = "messier") {
+export function variantUrl(url, config, mode = "reference", kind = "T") {
   const validated = validateConfig(config),
-    result = pageUrl("T", url);
+    result = pageUrl(kind, url);
   result.search = "";
   result.hash = "";
-  result.searchParams.set("seed", seedCode("T", validated.seed));
+  result.searchParams.set("seed", seedCode(kind, validated.seed));
   const settings = { ...validated };
   delete settings.seed;
   const defaults = { ...validateConfig(), seed: undefined };
   delete defaults.seed;
   const changed = changedSettings(settings, defaults);
-  if (changed) result.searchParams.set("cfg", JSON.stringify(changed));
-  if (mode !== "messier") result.searchParams.set("mode", mode);
+  if (changed && kind !== "E") result.searchParams.set("cfg", JSON.stringify(changed));
+  if (mode !== "reference") result.searchParams.set("mode", mode);
   return result.href;
 }
 export function readVariantUrl(url) {
@@ -266,6 +294,6 @@ export function readVariantUrl(url) {
     config,
     mode: ["reference", "stars", "messier", "lines", "sandbox"].includes(mode)
       ? mode
-      : "messier",
+      : "reference",
   };
 }

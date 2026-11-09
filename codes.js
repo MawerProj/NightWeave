@@ -1,8 +1,8 @@
-import { pageUrl } from "./site-url.js?v=7";
+import { pageUrl } from "./site-url.js?v=9";
 
 export function parseCode(value, fallback = "T") {
-  const match = String(value).trim().match(/^([TQ])?\s*(\d{1,12})$/i);
-  if (!match) throw new Error("Введи код T12345 для тренажёра или Q12345 для квиза.");
+  const match = String(value).trim().match(/^([TQE])?\s*(\d{1,12})$/i);
+  if (!match) throw new Error("Введи T12345 для тренажёра, Q12345 для квиза или E12345 для экзамена.");
   return { kind: (match[1] || fallback).toUpperCase(), seed: match[2] };
 }
 
@@ -41,7 +41,7 @@ export function seedParams(value) {
   const url = new URL(value);
   if (url.searchParams.has("seed")) return url.searchParams;
   const hash = decodeURIComponent(url.hash.slice(1));
-  return new URLSearchParams(/^[TQ]?\d+$/i.test(hash) ? `seed=${hash}` : hash);
+  return new URLSearchParams(/^[TQE]?\d+$/i.test(hash) ? `seed=${hash}` : hash);
 }
 
 export function changedSettings(value, defaults) {

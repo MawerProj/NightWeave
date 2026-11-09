@@ -1,5 +1,5 @@
-import { currentSiteUrl } from "./site-url.js?v=7";
-import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=7";
+import { currentSiteUrl } from "./site-url.js?v=9";
+import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=9";
 import {
   QUESTION_TYPES,
   QUIZ_DEFAULTS,
@@ -9,14 +9,14 @@ import {
   gradeQuiz,
   quizUrl,
   readQuizUrl,
-} from "./quiz-model.js?v=7";
-import { drawLocator } from "./locator.js?v=7";
-import { printQuiz } from "./quiz-print.js?v=7";
-import { downloadBlob } from "./pdf.js?v=7";
-import { Atlas } from "./atlas.js?v=7";
+} from "./quiz-model.js?v=9";
+import { drawLocator } from "./locator.js?v=9";
+import { printQuiz } from "./quiz-print.js?v=9";
+import { downloadBlob } from "./pdf.js?v=9";
+import { Atlas } from "./atlas.js?v=9";
 
-import { seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=7";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=7";
+import { seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=9";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=9";
 
 const $ = (id) => document.getElementById(id),
   KEY = "nightweave-quiz-v1";
