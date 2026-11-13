@@ -1,4 +1,6 @@
-import { attachMapGestures } from "./map-gestures.js?v=10";
+import { attachMapGestures } from "./map-gestures.js?v=11";
+import { attachMapWheel } from "./map-wheel.js?v=11";
+import { suspendInlineMap } from "./inline-map.js?v=11";
 
 let active = null;
 
@@ -6,8 +8,9 @@ export function closeFullscreen() {
   active?.close();
 }
 
-export function openFullscreen({ content, stage, canvas, title = "Карта неба", navigation, settings, captureInteraction, canStartGesture, onSingleTouchEnd }) {
+export function openFullscreen({ content, stage, canvas, title = "Карта неба", navigation, settings, review, captureInteraction, canStartGesture, onSingleTouchEnd }) {
   closeFullscreen();
+  const resumeInline = suspendInlineMap(canvas);
   const previousFocus = document.activeElement;
   const parent = content.closest("dialog[open]") || document.body;
   const shell = document.createElement("div");
@@ -53,6 +56,10 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
     onSingleTouchEnd: () => { if (!panning) onSingleTouchEnd?.(); },
     onStart: () => { drag = null; },
   });
+  const removeWheel = attachMapWheel({ viewport, stage, getZoom: () => zoom, setZoom: changeZoom,
+    getRotation: () => rotation, setRotation: value => { rotation = value; fit(); },
+    getStageSize: () => ({ width: stageWidth, height: stageHeight }) });
+  if (review) move(review, shell.querySelector(".fullscreen-toolbar"));
   const panButton = document.createElement("button");
   panButton.type = "button";
   panButton.textContent = "Перемещать";
@@ -136,6 +143,7 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
   const windowObject = document.defaultView || globalThis;
   windowObject.addEventListener("resize", fit);
   function keydown(event) {
+    if (document.querySelector(".check-confirmation[open]")) return;
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
@@ -158,6 +166,7 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
     resize?.disconnect();
     changes?.disconnect();
     removeGestures();
+    removeWheel();
     windowObject.removeEventListener("resize", fit);
     document.removeEventListener("keydown", keydown, true);
     document.removeEventListener("fullscreenchange", fullscreenChanged);
@@ -169,6 +178,7 @@ export function openFullscreen({ content, stage, canvas, title = "Карта н�
     viewport.remove();
     if (settings) settings.hidden = settingsHidden;
     shell.remove();
+    resumeInline();
     document.body.style.overflow = originalOverflow;
     if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
   }

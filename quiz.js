@@ -1,5 +1,6 @@
-import { currentSiteUrl } from "./site-url.js?v=10";
-import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=10";
+import { attachInlineMap } from "./inline-map.js?v=11";
+import { currentSiteUrl } from "./site-url.js?v=11";
+import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=11";
 import {
   QUESTION_TYPES,
   QUIZ_DEFAULTS,
@@ -9,14 +10,14 @@ import {
   gradeQuiz,
   quizUrl,
   readQuizUrl,
-} from "./quiz-model.js?v=10";
-import { drawLocator } from "./locator.js?v=10";
-import { printQuiz } from "./quiz-print.js?v=10";
-import { downloadBlob } from "./pdf.js?v=10";
-import { Atlas } from "./atlas.js?v=10";
+} from "./quiz-model.js?v=11";
+import { drawLocator } from "./locator.js?v=11";
+import { printQuiz } from "./quiz-print.js?v=11";
+import { downloadBlob } from "./pdf.js?v=11";
+import { Atlas } from "./atlas.js?v=11";
 
-import { seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=10";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=10";
+import { seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=11";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=11";
 
 const $ = (id) => document.getElementById(id),
   KEY = "nightweave-quiz-v1";
@@ -125,6 +126,8 @@ function start(random = false, config = null) {
     toast(error.message);
   }
 }
+let quizMapNavigation;
+
 function render() {
   const q = quiz.questions[index];
   if (!q) return;
@@ -142,6 +145,7 @@ function render() {
     $("quiz-image").style.borderRadius =
       q.map.shape === "rectangle" ? "0" : "50%";
   }
+  quizMapNavigation?.refresh();
   const list = $("quiz-options");
   list.replaceChildren();
   list.hidden = quiz.config.answerMode !== "choice";
@@ -270,6 +274,7 @@ async function pdf(answer) {
   }
 }
 async function initialize() {
+  quizMapNavigation = attachInlineMap({ stage: $("quiz-image"), canvas: $("quiz-image") });
   $("quiz-expand-map").onclick = () => openFullscreen({ content: $("quiz-run"), stage: $("quiz-image"), canvas: $("quiz-image"), title: "Карта к вопросу" });
   $("quiz-types").innerHTML = Object.entries(QUESTION_TYPES)
     .map(

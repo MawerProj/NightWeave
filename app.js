@@ -1,9 +1,12 @@
-import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=10";
-import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=10";
-import { nearestPlacedPoint } from "./point-drag.js?v=10";
-import { currentSiteUrl } from "./site-url.js?v=10";
-import { canvasPoint } from "./map-view.js?v=10";
-import { openFullscreen } from "./fullscreen.js?v=10";
+import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=11";
+import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=11";
+import { nearestPlacedPoint } from "./point-drag.js?v=11";
+import { attachInlineMap } from "./inline-map.js?v=11";
+import { drawConstellationLines } from "./constellation-lines.js?v=11";
+import { confirmDrawingCheck } from "./check-confirmation.js?v=11";
+import { currentSiteUrl } from "./site-url.js?v=11";
+import { canvasPoint } from "./map-view.js?v=11";
+import { openFullscreen } from "./fullscreen.js?v=11";
 import {
   RAD,
   clamp,
@@ -16,7 +19,7 @@ import {
   boundaryCrossings,
   greatCircles,
   angularDistance,
-} from "./astro.js?v=10";
+} from "./astro.js?v=11";
 import {
   LEVELS,
   selectTargets,
@@ -27,9 +30,9 @@ import {
   scoreDrawing,
   sandboxPoints,
   sortMessier,
-} from "./training.js?v=10";
-import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=10";
-import { SkyRenderer, mapHeight } from "./renderer.js?v=10";
+} from "./training.js?v=11";
+import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=11";
+import { SkyRenderer, mapHeight } from "./renderer.js?v=11";
 import {
   createVariant,
   validateConfig,
@@ -37,12 +40,12 @@ import {
   variantSummary,
   variantUrl as taskUrl,
   readVariantUrl,
-} from "./variant.js?v=10";
-import { Atlas } from "./atlas.js?v=10";
-import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=10";
-import { downloadBlob } from "./pdf.js?v=10";
-import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=10";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=10";
+} from "./variant.js?v=11";
+import { Atlas } from "./atlas.js?v=11";
+import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=11";
+import { downloadBlob } from "./pdf.js?v=11";
+import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=11";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=11";
 
 const $ = (id) => document.getElementById(id);
 const SIZE = 1000,
@@ -508,9 +511,7 @@ function drawGuides() {
     );
   }
   if ($("guides").checked && state.mode !== "lines")
-    for (const figure of catalog.lines)
-      for (const path of figure.paths)
-        drawPath(context, path, paper ? "#777" : "#8eb8cb70", 1.3);
+    drawConstellationLines(context, catalog, state.config, { color: paper ? "#777" : "#8eb8cb70", width: 1.3 });
 }
 function marker(ctx, point, label, color, correct = false, target = null) {
   if (!point) return;
@@ -882,6 +883,10 @@ function updateProgress() {
     : percentage + "%";
   $("completion-bar").style.width = percentage + "%";
   $("check").disabled = isExam || state.checked;
+  $("check").hidden = state.mode === "lines";
+  $("line-review").hidden = state.mode !== "lines" || isExam;
+  $("check-lines").disabled = state.checked;
+  $("check-lines").textContent = state.checked ? "Рисунок проверен ✓" : "Завершить и проверить рисунок";
   $("check").textContent = isExam ? (variant.examReport ? "Экзамен проверен ✓" : "Проверка всех заданий — в конце") : state.checked
     ? "Ответ проверен ✓"
     : "Проверить ответ ↗";
@@ -1025,9 +1030,10 @@ function pointerDown(event) {
     };
     state.pending = null;
     drawMarks();
-  } else place(coordinate, event.pointerType !== "touch" || !sky.closest(".fullscreen-shell"));
+  } else place(coordinate, event.pointerType !== "touch");
 }
 function pointerMove(event) {
+  if (event.pointerType === "pen" && (event.buttons || drawing?.id === event.pointerId)) lastPenContact = performance.now();
   const c = eventCoordinate(event);
   $("cursor-coords").textContent = c
     ? `RA ${(c[0] / 15).toFixed(2)}h · DEC ${c[1].toFixed(1)}°`
@@ -1054,6 +1060,7 @@ function pointerMove(event) {
   drawMarks();
 }
 function pointerUp(event) {
+  if (event.pointerType === "pen") lastPenContact = performance.now();
   if (draggingMark?.id === event.pointerId) {
     draggingMark = null;
     sky.classList.remove("dragging-point");
@@ -1247,6 +1254,24 @@ function snapshot() {
 }
 function showHistory() { showProgress(openDialog); }
 function bindEvents() {
+  const interactions = {
+    canStartGesture: () => Boolean(state.config) && performance.now() - lastPenContact >= 800,
+    onSingleTouchEnd: () => {
+      if (state.mode === "sandbox" && state.pending && !state.checked && !draggingMark) sandboxInput().focus({ preventScroll: true });
+    },
+    captureInteraction: () => {
+      const attempt = state;
+      const before = structuredClone({ answers: state.answers, selected: state.selected, pending: state.pending, strokes: state.strokes, entries: state.entries });
+      return () => {
+        if (state !== attempt) return;
+        drawing = null; draggingMark = null;
+        sky.classList.remove("dragging-point");
+        Object.assign(state, before);
+        updateAnswer();
+      };
+    },
+  };
+  attachInlineMap({ stage: $("map-stage"), canvas: sky, ...interactions });
   if (isExam) {
     $("exam-name").oninput = () => { if (variant && !variant.examReport) { variant.participantName = $("exam-name").value; save(); } };
     document.querySelector('[data-mode="sandbox"]').hidden = true;
@@ -1263,22 +1288,8 @@ function bindEvents() {
   $("expand-map").onclick = () => openFullscreen({
     content: document.querySelector(".lab-body"), stage: $("map-stage"), canvas: sky,
     title: isExam ? "Экзамен" : "Тренажёр неба", navigation: document.querySelector(".tabs"), settings: isExam ? undefined : $("settings"),
-    canStartGesture: () => performance.now() - lastPenContact >= 800,
-    onSingleTouchEnd: () => {
-      if (state.mode === "sandbox" && state.pending && !state.checked && !draggingMark) sandboxInput().focus({ preventScroll: true });
-    },
-    captureInteraction: () => {
-      const attempt = state;
-      const before = structuredClone({ answers: state.answers, selected: state.selected, pending: state.pending, strokes: state.strokes, entries: state.entries });
-      return () => {
-        if (state !== attempt) return;
-        drawing = null;
-        draggingMark = null;
-        sky.classList.remove("dragging-point");
-        Object.assign(state, before);
-        updateAnswer();
-      };
-    },
+    review: $("line-review"),
+    ...interactions,
   });
   $("sandbox-greek").innerHTML = GREEK_LETTERS.map(([symbol, name]) => `<option value="${symbol}">${symbol} · ${name}</option>`).join("");
   $("settings-toggle").onclick = () => {
@@ -1318,7 +1329,11 @@ function bindEvents() {
     if (event.key === "Enter") $("load-variant").click();
   };
   $("copy-variant").onclick = copyVariantLink;
-  $("check-variant").onclick = checkWholeVariant;
+  $("check-variant").onclick = () => {
+    const attempt = variant;
+    if (!variant.attempts.lines.checked) confirmDrawingCheck({ whole: true, exam: isExam, onConfirm: () => { if (attempt === variant) checkWholeVariant(); } });
+    else checkWholeVariant();
+  };
   $("level").onchange = () => newTask();
   $("display").onchange = () => {
     if (!state.config) return;
@@ -1395,7 +1410,12 @@ function bindEvents() {
     updateAnswer();
   };
   $("clear").onclick = clearAnswers;
-  $("check").onclick = () => checkAnswer();
+  $("check").onclick = () => state.mode === "lines" ? $("check-lines").click() : checkAnswer();
+  $("check-lines").onclick = () => {
+    if (state.mode !== "lines" || state.checked || isExam) return;
+    const attempt = state;
+    confirmDrawingCheck({ onConfirm: () => { if (state === attempt) checkAnswer(); } });
+  };
   $("export-pdf").onclick = () => exportPdf(false);
   $("export-answers").onclick = () => exportPdf(true);
   $("export-settings").onclick = async () => {

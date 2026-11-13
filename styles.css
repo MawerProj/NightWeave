@@ -1964,6 +1964,29 @@ dialog ol {
 .exam-instructions input { max-width: 360px; }
 [data-session-kind="E"] #level, [data-session-kind="E"] .practice-options label:has(#level) { display: none; }
 .dragging-point { cursor: grabbing; }
+.inline-map-viewport { width: 100%; max-width: 100%; position: relative; display: grid; align-items: start; justify-items: start; overflow: auto; overscroll-behavior: contain; touch-action: none; margin: 12px auto 6px; scrollbar-width: thin; }
+.inline-transform-frame { position: relative; margin: 0 auto; flex: none; }
+.inline-transform-frame > .map-stage, .fullscreen-transform-frame > .map-stage { max-width: none !important; margin: 0 !important; }
+.inline-transform-frame > canvas { display: block; max-width: none !important; height: auto !important; margin: 0 !important; }
+.inline-map-controls { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.inline-map-controls button { min-height: 38px; padding: 7px 10px; border: 1px solid #435560; border-radius: 5px; font-size: 12px; }
+.inline-map-controls output { width: 44px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+.inline-map-controls span { flex: 1 0 100%; text-align: center; font-size: 10px; color: var(--muted); }
+.inline-map-controls button[aria-pressed="true"] { color: var(--lime); border-color: var(--lime); }
+.inline-map-viewport.is-panning canvas { cursor: grab !important; }
+.inline-map-viewport.is-gesturing canvas { cursor: grabbing !important; }
+.drawing-review { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--line); background: #17272b; }
+.drawing-review strong, .drawing-review span { display: block; }
+.drawing-review span { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.drawing-review button { flex: none; min-height: 46px; border-color: #71864d; }
+.fullscreen-toolbar .drawing-review { padding: 0; border: none; background: transparent; }
+.fullscreen-toolbar .drawing-review > div { display: none; }
+.check-confirmation { width: min(480px, calc(100vw - 32px)); padding: 24px; border: 1px solid #63734e; border-radius: 12px; color: var(--text); background: #13212b; box-shadow: 0 20px 80px #0009; }
+.check-confirmation::backdrop { background: #0009; }
+.check-confirmation h2 { margin-top: 0; font-size: 24px; }
+.check-confirmation p { color: #b6c3cb; line-height: 1.65; }
+.check-confirmation > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.check-confirmation button { min-height: 48px; padding: 10px 16px; }
 .object-number { font-family: "Nightweave Symbols", system-ui, sans-serif; }
 .reference-row .object-number { font-size: 15px; }
 @media (max-width: 760px) { .exam-instructions { padding: 16px; } }

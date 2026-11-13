@@ -1,9 +1,11 @@
-import { atlasStars, constellationView } from "./constellation-atlas.js?v=10";
-import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=10";
-import { projector } from "./astro.js?v=10";
-import { vectorMap } from "./renderer.js?v=10";
-import { normalizeName } from "./training.js?v=10";
-import { downloadBlob } from "./pdf.js?v=10";
+import { attachInlineMap } from "./inline-map.js?v=11";
+import { drawConstellationLines } from "./constellation-lines.js?v=11";
+import { atlasStars, constellationView } from "./constellation-atlas.js?v=11";
+import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=11";
+import { projector } from "./astro.js?v=11";
+import { vectorMap } from "./renderer.js?v=11";
+import { normalizeName } from "./training.js?v=11";
+import { downloadBlob } from "./pdf.js?v=11";
 
 const escape = (text) =>
   String(text).replace(
@@ -23,6 +25,7 @@ export class Atlas {
   }
   open() {
     closeFullscreen();
+    this.mapNavigation?.destroy();
     this.query = "";
     this.openDialog(
       `<p class="eyebrow">FIELD GUIDE</p><h2>Каталог неба</h2><div class="atlas-search"><label>Каталог<select id="atlas-kind"><option value="messier">Мессье · 110 объектов</option><option value="stars">Звёзды · ${atlasStars(this.catalog).length}</option><option value="constellations">Созвездия · ${this.catalog.constellations.length}</option></select></label><label>Поиск<input id="atlas-query" type="search" placeholder="M31, Вега, α Lyr, Орион, Orion…" autocomplete="off"></label></div><p id="atlas-count" class="fine"></p><div id="atlas-list" class="atlas-list"></div>`,
@@ -76,6 +79,7 @@ export class Atlas {
   }
   detail(object, returnTo = null) {
     closeFullscreen();
+    this.mapNavigation?.destroy();
     const constellation = Boolean(object.latinName);
     const view = constellation ? constellationView(this.catalog, object) : null;
     const messier = !constellation && object.id.startsWith("M");
@@ -105,34 +109,9 @@ export class Atlas {
         center = size / 2,
         radius = center - 2;
       vectorMap(canvas, this.catalog, config);
-      if (document.getElementById("finder-lines").checked) {
-        ctx.strokeStyle = "#8cc6d380";
-        ctx.lineWidth = 1.3;
-        for (const figure of this.catalog.lines)
-          for (const path of figure.paths) {
-            ctx.strokeStyle = constellation && figure.id === object.id ? "#d5ec95" : "#8cc6d350";
-            ctx.lineWidth = constellation && figure.id === object.id ? 2.5 : 1.3;
-            ctx.beginPath();
-            let previous = null;
-            for (const coordinate of path) {
-              const point = p.project(...coordinate);
-              if (!point) {
-                previous = null;
-                continue;
-              }
-              const x = center + point[0] * radius,
-                y = center + point[1] * radius;
-              if (
-                previous &&
-                Math.hypot(x - previous[0], y - previous[1]) < size / 3
-              )
-                ctx.lineTo(x, y);
-              else ctx.moveTo(x, y);
-              previous = [x, y];
-            }
-            ctx.stroke();
-          }
-      }
+      if (document.getElementById("finder-lines").checked) drawConstellationLines(ctx, this.catalog, config, {
+        color: constellation ? "#8cc6d350" : "#8cc6d380", width: 1.3, highlightId: constellation ? object.id : null,
+      });
       ctx.font = "17px system-ui";
       ctx.fillStyle = "#abc4cf";
       let labels = 0;
@@ -193,5 +172,6 @@ export class Atlas {
       );
     document.getElementById("finder-expand").onclick = () => openFullscreen({ content: document.querySelector(".finder-view"), stage: canvas, canvas, title: "Карта-искатель " + object.name });
     render();
+    this.mapNavigation = attachInlineMap({ stage: canvas, canvas });
   }
 }

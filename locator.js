@@ -1,5 +1,6 @@
-import { projector } from "./astro.js?v=10";
-import { vectorMap, mapHeight } from "./renderer.js?v=10";
+import { drawConstellationLines } from "./constellation-lines.js?v=11";
+import { projector } from "./astro.js?v=11";
+import { vectorMap, mapHeight } from "./renderer.js?v=11";
 
 export function drawLocator(
   canvas,
@@ -16,28 +17,7 @@ export function drawLocator(
     cx = canvas.width / 2,
     cy = canvas.height / 2,
     radius = cx - 2;
-  if (lines) {
-    ctx.strokeStyle = paper ? "#888" : "#8cc6d380";
-    ctx.lineWidth = Math.max(1, canvas.width / 700);
-    for (const figure of catalog.lines)
-      for (const path of figure.paths) {
-        ctx.beginPath();
-        let previous = null;
-        for (const c of path) {
-          const point = p.project(...c);
-          if (!point) {
-            previous = null;
-            continue;
-          }
-          const x = cx + point[0] * radius,
-            y = cy + point[1] * radius;
-          if (previous) ctx.lineTo(x, y);
-          else ctx.moveTo(x, y);
-          previous = point;
-        }
-        ctx.stroke();
-      }
-  }
+  if (lines) drawConstellationLines(ctx, catalog, config, { color: paper ? "#888" : "#8cc6d380", width: Math.max(1, canvas.width / 700) });
   const position = p.project(question.object.ra, question.object.dec);
   if (position) {
     const x = cx + position[0] * radius,

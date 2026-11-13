@@ -1,4 +1,4 @@
-import { angularDistance, coordinates, vector } from "./astro.js?v=10";
+import { angularDistance, coordinates, vector } from "./astro.js?v=11";
 
 export function atlasStars(catalog) {
   return catalog.atlasStars || catalog.named;
