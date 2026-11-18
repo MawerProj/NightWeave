@@ -1,6 +1,6 @@
-import { attachMapGestures } from "./map-gestures.js?v=12";
-import { attachMapWheel } from "./map-wheel.js?v=12";
-import { suspendInlineMap } from "./inline-map.js?v=12";
+import { attachMapGestures } from "./map-gestures.js?v=13";
+import { attachMapWheel } from "./map-wheel.js?v=13";
+import { suspendInlineMap } from "./inline-map.js?v=13";
 
 let active = null;
 

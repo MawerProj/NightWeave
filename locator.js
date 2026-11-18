@@ -1,6 +1,6 @@
-import { drawConstellationLines } from "./constellation-lines.js?v=12";
-import { projector } from "./astro.js?v=12";
-import { vectorMap, mapHeight } from "./renderer.js?v=12";
+import { drawConstellationLines } from "./constellation-lines.js?v=13";
+import { projector } from "./astro.js?v=13";
+import { vectorMap, mapHeight } from "./renderer.js?v=13";
 
 export function drawLocator(
   canvas,

@@ -5,10 +5,10 @@ import {
   referencePoints,
   clamp,
   angularDistance,
-} from "./astro.js?v=12";
-import { selectTargets, visibleSegments } from "./training.js?v=12";
-import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=12";
-import { pageUrl } from "./site-url.js?v=12";
+} from "./astro.js?v=13";
+import { selectTargets, visibleSegments } from "./training.js?v=13";
+import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=13";
+import { pageUrl } from "./site-url.js?v=13";
 
 export const DEFAULT_MAPS = [
   {

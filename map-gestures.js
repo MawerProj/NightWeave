@@ -1,4 +1,4 @@
-import { rotateOffset } from "./map-view.js?v=12";
+import { rotateOffset } from "./map-view.js?v=13";
 
 export function attachMapGestures({ viewport, stage, getZoom, setZoom, getRotation = () => 0, setRotation = () => {}, getStageSize, captureInteraction, onStart, canStartGesture, onSingleTouchEnd }) {
   const touches = new Map();

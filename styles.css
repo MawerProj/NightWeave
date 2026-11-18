@@ -1996,3 +1996,23 @@ dialog ol {
 .object-number { font-family: "Nightweave Symbols", system-ui, sans-serif; }
 .reference-row .object-number { font-size: 15px; }
 @media (max-width: 760px) { .exam-instructions { padding: 16px; } }
+
+
+.app-install { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin: 22px 0; padding: 18px 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.app-install > div { flex: 1 1 280px; min-width: 0; }
+.app-install strong { font-size: 14px; }
+.app-install p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 6px 0 0; overflow-wrap: anywhere; }
+.app-install > details { flex: 1 0 100%; }
+.app-install summary { cursor: pointer; font-size: 13px; color: var(--cyan); min-height: 32px; display: list-item; }
+.app-install button { min-height: 44px; white-space: normal; }
+body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+@media (max-width: 760px) {
+  .app-install { padding: 16px; margin-top: 16px; }
+  .app-install button { width: 100%; }
+  .offline-download { padding-inline: 18px; }
+  .offline-download a { min-height: 44px; display: inline-flex; align-items: center; }
+}
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="range"]), select, textarea { font-size: 16px; }
+  input:not([type="checkbox"]):not([type="range"]), select { min-height: 44px; }
+}

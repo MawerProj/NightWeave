@@ -1,15 +1,15 @@
-import { currentSiteUrl } from "./site-url.js?v=12";
+import { currentSiteUrl } from "./site-url.js?v=13";
 import {
   boundaryCrossings,
   projector,
   randomGenerator,
   referencePoints,
-} from "./astro.js?v=12";
-import { selectTargets, visibleSegments, resolveObject, sortMessier } from "./training.js?v=12";
-import { vectorMap, mapHeight } from "./renderer.js?v=12";
-import { createVariant, variantUrl, hasCustomSettings } from "./variant.js?v=12";
-import { createPdf } from "./pdf.js?v=12";
-import { drawPrintQr } from "./print-qr.js?v=12";
+} from "./astro.js?v=13";
+import { selectTargets, visibleSegments, resolveObject, sortMessier } from "./training.js?v=13";
+import { vectorMap, mapHeight } from "./renderer.js?v=13";
+import { createVariant, variantUrl, hasCustomSettings } from "./variant.js?v=13";
+import { createPdf } from "./pdf.js?v=13";
+import { drawPrintQr } from "./print-qr.js?v=13";
 
 const WIDTH = 1654,
   HEIGHT = 2339,

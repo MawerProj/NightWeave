@@ -1,14 +1,14 @@
-import { loadCatalog, nasaTextureUrl } from "./runtime-assets.js?v=12";
-import { eraseStrokes } from "./eraser.js?v=12";
-import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=12";
-import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=12";
-import { nearestPlacedPoint } from "./point-drag.js?v=12";
-import { attachInlineMap } from "./inline-map.js?v=12";
-import { drawConstellationLines } from "./constellation-lines.js?v=12";
-import { confirmDrawingCheck, confirmSeedChange } from "./check-confirmation.js?v=12";
-import { currentSiteUrl, replaceSiteUrl } from "./site-url.js?v=12";
-import { canvasPoint } from "./map-view.js?v=12";
-import { openFullscreen } from "./fullscreen.js?v=12";
+import { loadCatalog, nasaTextureUrl } from "./runtime-assets.js?v=13";
+import { eraseStrokes } from "./eraser.js?v=13";
+import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=13";
+import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=13";
+import { nearestPlacedPoint } from "./point-drag.js?v=13";
+import { attachInlineMap } from "./inline-map.js?v=13";
+import { drawConstellationLines } from "./constellation-lines.js?v=13";
+import { confirmDrawingCheck, confirmSeedChange } from "./check-confirmation.js?v=13";
+import { currentSiteUrl, replaceSiteUrl } from "./site-url.js?v=13";
+import { canvasPoint } from "./map-view.js?v=13";
+import { openFullscreen } from "./fullscreen.js?v=13";
 import {
   RAD,
   clamp,
@@ -21,7 +21,7 @@ import {
   boundaryCrossings,
   greatCircles,
   angularDistance,
-} from "./astro.js?v=12";
+} from "./astro.js?v=13";
 import {
   LEVELS,
   selectTargets,
@@ -32,9 +32,9 @@ import {
   scoreDrawing,
   sandboxPoints,
   sortMessier,
-} from "./training.js?v=12";
-import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=12";
-import { SkyRenderer, mapHeight } from "./renderer.js?v=12";
+} from "./training.js?v=13";
+import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=13";
+import { SkyRenderer, mapHeight } from "./renderer.js?v=13";
 import {
   createVariant,
   validateConfig,
@@ -42,12 +42,12 @@ import {
   variantSummary,
   variantUrl as taskUrl,
   readVariantUrl,
-} from "./variant.js?v=12";
-import { Atlas } from "./atlas.js?v=12";
-import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=12";
-import { downloadBlob } from "./pdf.js?v=12";
-import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=12";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=12";
+} from "./variant.js?v=13";
+import { Atlas } from "./atlas.js?v=13";
+import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=13";
+import { downloadBlob } from "./pdf.js?v=13";
+import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=13";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=13";
 
 const $ = (id) => document.getElementById(id);
 const SIZE = 1000,
