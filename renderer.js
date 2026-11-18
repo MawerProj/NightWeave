@@ -1,4 +1,4 @@
-import { RAD, camera, clamp, projector } from "./astro.js?v=11";
+import { RAD, camera, clamp, projector } from "./astro.js?v=12";
 
 const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
 export const mapHeight = (width, config) =>
@@ -188,9 +188,10 @@ export class SkyRenderer {
     this.pending = new Map();
     if (typeof Worker !== "undefined") {
       try {
-        this.worker = new Worker(new URL("./sky-worker.js?v=11", import.meta.url), {
-          type: "module",
-        });
+        const offlineScript = globalThis.NIGHTWEAVE_OFFLINE?.workerScript;
+        this.worker = offlineScript
+          ? new Worker(URL.createObjectURL(new Blob([offlineScript], { type: "text/javascript" })))
+          : new Worker(new URL("./sky-worker.js?v=12", import.meta.url), { type: "module" });
         this.worker.onmessage = ({ data }) => {
           this.pending.get(data.id)?.(data);
           this.pending.delete(data.id);

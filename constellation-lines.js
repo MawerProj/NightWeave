@@ -1,5 +1,5 @@
-import { projector } from "./astro.js?v=11";
-import { visibleSegments } from "./training.js?v=11";
+import { projector } from "./astro.js?v=12";
+import { visibleSegments } from "./training.js?v=12";
 
 const cache = new WeakMap();
 

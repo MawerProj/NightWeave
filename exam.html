@@ -9,8 +9,8 @@
       content="Интерактивный тренажёр звёздного неба. Объекты Мессье, звёзды, созвездия и печатные задания на карте NASA 2020."
     />
     <title>Nightweave — экзамен</title>
-    <link rel="stylesheet" href="styles.css?v=11" />
-    <script type="module" src="app.js?v=11"></script>
+    <link rel="stylesheet" href="styles.css?v=12" />
+    <script type="module" src="app.js?v=12"></script>
   </head>
   <body data-session-kind="E">
     <header class="header">
@@ -570,15 +570,15 @@
               <label class="tool-label"
                 >Инструмент<select id="draw-tool">
                   <option value="freehand">Свободный штрих</option>
-                  <option value="pairs">Соединить двумя нажатиями</option>
+                  <option value="pairs">Соединить двумя нажатиями</option><option value="eraser">Ластик</option>
                 </select></label
               >
               <p>
-                Рисуй по карте мышью, пальцем или стилусом. Стилус всегда рисует
-                свободный штрих; Esc отменяет незавершённый.
+                Рисуй или стирай мышью, пальцем и стилусом. Ластик удаляет только участок линии под курсором; отмена возвращает последнее действие.
               </p>
+              <label id="eraser-size-label" class="tool-label" hidden>Радиус ластика · <output id="eraser-size-value">16</output> px<input id="eraser-size" type="range" min="8" max="40" step="2" value="16"></label>
               <button id="undo-line" class="secondary">
-                ↶ Отменить последний штрих
+                ↶ Отменить действие
               </button>
             </div>
             <div id="sandbox-tools" hidden>
@@ -696,6 +696,10 @@
         ><span class="mono">СОЗДАНО ДЛЯ ЛЮБОПЫТСТВА</span>
       </footer>
     </main>
+    <aside class="offline-download">
+      <a class="secondary" href="nightweave-offline.html" download="Nightweave.html">↓ Скачать офлайн-приложение</a>
+      <p>Один HTML-файл со всеми картами и каталогами. Сохрани его на компьютер и открой в браузере без интернета.</p>
+    </aside>
     <dialog id="dialog">
       <button class="dialog-close icon-button" aria-label="Закрыть">✕</button>
       <div id="dialog-content"></div>

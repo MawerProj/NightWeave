@@ -1,4 +1,4 @@
-import { pageUrl } from "./site-url.js?v=11";
+import { pageUrl } from "./site-url.js?v=12";
 
 export function parseCode(value, fallback = "T") {
   const match = String(value).trim().match(/^([TQE])?\s*(\d{1,12})$/i);

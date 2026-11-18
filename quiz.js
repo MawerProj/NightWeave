@@ -1,6 +1,8 @@
-import { attachInlineMap } from "./inline-map.js?v=11";
-import { currentSiteUrl } from "./site-url.js?v=11";
-import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=11";
+import { loadCatalog } from "./runtime-assets.js?v=12";
+import { confirmSeedChange } from "./check-confirmation.js?v=12";
+import { attachInlineMap } from "./inline-map.js?v=12";
+import { currentSiteUrl, replaceSiteUrl } from "./site-url.js?v=12";
+import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=12";
 import {
   QUESTION_TYPES,
   QUIZ_DEFAULTS,
@@ -10,14 +12,14 @@ import {
   gradeQuiz,
   quizUrl,
   readQuizUrl,
-} from "./quiz-model.js?v=11";
-import { drawLocator } from "./locator.js?v=11";
-import { printQuiz } from "./quiz-print.js?v=11";
-import { downloadBlob } from "./pdf.js?v=11";
-import { Atlas } from "./atlas.js?v=11";
+} from "./quiz-model.js?v=12";
+import { drawLocator } from "./locator.js?v=12";
+import { printQuiz } from "./quiz-print.js?v=12";
+import { downloadBlob } from "./pdf.js?v=12";
+import { Atlas } from "./atlas.js?v=12";
 
-import { seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=11";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=11";
+import { seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=12";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=12";
 
 const $ = (id) => document.getElementById(id),
   KEY = "nightweave-quiz-v1";
@@ -96,7 +98,7 @@ function updateUrl() {
     currentSiteUrl(),
     quiz.config,
   );
-  globalThis.history?.replaceState(null, "", url);
+  replaceSiteUrl(url);
 }
 function start(random = false, config = null) {
   closeFullscreen();
@@ -282,7 +284,7 @@ async function initialize() {
         `<label class="checkbox"><input type="checkbox" data-question-type="${key}" checked>${label}</label>`,
     )
     .join("");
-  $("quiz-generate").onclick = () => start(true);
+  $("quiz-generate").onclick = () => confirmSeedChange({ onConfirm: () => start(true) });
   $("quiz-load").onclick = () => start();
   $("quiz-copy").onclick = copyLink;
   $("quiz-prev").onclick = () => {
@@ -312,9 +314,7 @@ async function initialize() {
   document.querySelector(".dialog-close").onclick = () => $("dialog").close();
   try {
     if (routeLinkedCode("Q")) return;
-    const response = await fetch("./assets/catalog.json", { cache: "no-cache" });
-    if (!response.ok) throw new Error("Каталог недоступен");
-    catalog = await response.json();
+    catalog = await loadCatalog();
     atlas = new Atlas(catalog, openDialog);
     let linked = null;
     try {

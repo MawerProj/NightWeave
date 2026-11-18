@@ -1964,6 +1964,12 @@ dialog ol {
 .exam-instructions input { max-width: 360px; }
 [data-session-kind="E"] #level, [data-session-kind="E"] .practice-options label:has(#level) { display: none; }
 .dragging-point { cursor: grabbing; }
+.eraser-active { cursor: none !important; }
+#eraser-size-label { font-size: 12px; margin: 14px 0; }
+#eraser-size { width: 100%; padding: 0; min-height: 30px; accent-color: var(--lime); }
+.offline-download { max-width: 1100px; margin: 20px auto 36px; padding: 0 24px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.offline-download a { text-decoration: none; display: inline-block; }
+.offline-download p { flex: 1; min-width: 220px; color: var(--muted); font-size: 12px; }
 .inline-map-viewport { width: 100%; max-width: 100%; position: relative; display: grid; align-items: start; justify-items: start; overflow: auto; overscroll-behavior: contain; touch-action: none; margin: 12px auto 6px; scrollbar-width: thin; }
 .inline-transform-frame { position: relative; margin: 0 auto; flex: none; }
 .inline-transform-frame > .map-stage, .fullscreen-transform-frame > .map-stage { max-width: none !important; margin: 0 !important; }

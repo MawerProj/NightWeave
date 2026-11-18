@@ -1,12 +1,14 @@
-import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=11";
-import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=11";
-import { nearestPlacedPoint } from "./point-drag.js?v=11";
-import { attachInlineMap } from "./inline-map.js?v=11";
-import { drawConstellationLines } from "./constellation-lines.js?v=11";
-import { confirmDrawingCheck } from "./check-confirmation.js?v=11";
-import { currentSiteUrl } from "./site-url.js?v=11";
-import { canvasPoint } from "./map-view.js?v=11";
-import { openFullscreen } from "./fullscreen.js?v=11";
+import { loadCatalog, nasaTextureUrl } from "./runtime-assets.js?v=12";
+import { eraseStrokes } from "./eraser.js?v=12";
+import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=12";
+import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=12";
+import { nearestPlacedPoint } from "./point-drag.js?v=12";
+import { attachInlineMap } from "./inline-map.js?v=12";
+import { drawConstellationLines } from "./constellation-lines.js?v=12";
+import { confirmDrawingCheck, confirmSeedChange } from "./check-confirmation.js?v=12";
+import { currentSiteUrl, replaceSiteUrl } from "./site-url.js?v=12";
+import { canvasPoint } from "./map-view.js?v=12";
+import { openFullscreen } from "./fullscreen.js?v=12";
 import {
   RAD,
   clamp,
@@ -19,7 +21,7 @@ import {
   boundaryCrossings,
   greatCircles,
   angularDistance,
-} from "./astro.js?v=11";
+} from "./astro.js?v=12";
 import {
   LEVELS,
   selectTargets,
@@ -30,9 +32,9 @@ import {
   scoreDrawing,
   sandboxPoints,
   sortMessier,
-} from "./training.js?v=11";
-import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=11";
-import { SkyRenderer, mapHeight } from "./renderer.js?v=11";
+} from "./training.js?v=12";
+import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=12";
+import { SkyRenderer, mapHeight } from "./renderer.js?v=12";
 import {
   createVariant,
   validateConfig,
@@ -40,12 +42,12 @@ import {
   variantSummary,
   variantUrl as taskUrl,
   readVariantUrl,
-} from "./variant.js?v=11";
-import { Atlas } from "./atlas.js?v=11";
-import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=11";
-import { downloadBlob } from "./pdf.js?v=11";
-import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=11";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=11";
+} from "./variant.js?v=12";
+import { Atlas } from "./atlas.js?v=12";
+import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=12";
+import { downloadBlob } from "./pdf.js?v=12";
+import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=12";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=12";
 
 const $ = (id) => document.getElementById(id);
 const SIZE = 1000,
@@ -59,7 +61,7 @@ const renderer = new SkyRenderer();
 const KIND = document.body.dataset.sessionKind || "T";
 const isExam = KIND === "E";
 const STORAGE = isExam ? "nightweave-exam-v1" : "nightweave-variant-v3";
-let draggingMark;
+let draggingMark, erasing = null, eraserCursor = null;
 const numericFields = [
   "fov",
   "roll",
@@ -294,7 +296,7 @@ function updateVariantUrl() {
     variant.base,
     state.mode,
   );
-  globalThis.history?.replaceState(null, "", url);
+  replaceSiteUrl(url);
   $("variant-link").href = url;
 }
 function updateVariantSummary() {
@@ -322,6 +324,8 @@ function updateVariantSummary() {
 }
 function switchMode(mode) {
   if (!variant || (isExam && mode === "sandbox")) return;
+  cancelErasing();
+  eraserCursor = null;
   const fullscreenResult = document.querySelector("[data-fullscreen-result]");
   if (fullscreenResult) fullscreenResult.textContent = "";
   state.pending = null;
@@ -610,6 +614,12 @@ function drawMarks() {
           2,
           [6, 5],
         );
+    if (!state.checked && $("draw-tool").value === "eraser" && eraserCursor) {
+      const point = pixel(eraserCursor);
+      overlay.strokeStyle = "#ffb480"; overlay.lineWidth = 2;
+      overlay.setLineDash([5, 4]); overlay.beginPath();
+      overlay.arc(...point, eraserRadius() * RADIUS, 0, Math.PI * 2); overlay.stroke(); overlay.setLineDash([]);
+    }
     return;
   }
   if (state.mode === "sandbox") {
@@ -883,6 +893,10 @@ function updateProgress() {
     : percentage + "%";
   $("completion-bar").style.width = percentage + "%";
   $("check").disabled = isExam || state.checked;
+  sky.classList.toggle("eraser-active", state.mode === "lines" && !state.checked && $("draw-tool").value === "eraser");
+  $("eraser-size-label").hidden = $("draw-tool").value !== "eraser";
+  $("draw-tool").disabled = state.checked;
+  $("undo-line").disabled = state.checked;
   $("check").hidden = state.mode === "lines";
   $("line-review").hidden = state.mode !== "lines" || isExam;
   $("check-lines").disabled = state.checked;
@@ -977,8 +991,10 @@ function place(coordinate, focusInput = true) {
   if (state.mode === "lines") {
     if (!state.pending) state.pending = coordinate;
     else {
-      if (angularDistance(state.pending, coordinate) > 0.1)
+      if (angularDistance(state.pending, coordinate) > 0.1) {
+        rememberLineEdit();
         state.strokes.push({ points: [state.pending, coordinate] });
+      }
       state.pending = null;
     }
   } else {
@@ -1001,16 +1017,51 @@ function placedMark(event) {
   const radius = (event.pointerType === "touch" ? 22 : 12) / Math.max(0.01, scale) / RADIUS;
   return nearestPlacedPoint(items, normalizedEvent(event), (ra, dec) => projection.project(ra, dec), radius);
 }
+function rememberLineEdit(before = state.strokes) {
+  state.lineUndo ||= [];
+  state.lineUndo.push(structuredClone(before));
+  if (state.lineUndo.length > 20) state.lineUndo.shift();
+}
+function undoLineEdit() {
+  if (state.pending) state.pending = null;
+  else if (state.lineUndo?.length) state.strokes = state.lineUndo.pop();
+  else state.strokes.pop();
+}
+function eraserRadius() {
+  const rect = sky.getBoundingClientRect(), style = getComputedStyleForCanvas();
+  const width = style.width.endsWith("px") ? parseFloat(style.width) : sky.offsetWidth || rect.width;
+  return Number($("eraser-size").value) * sky.width / Math.max(1, width) / RADIUS;
+}
+function getComputedStyleForCanvas() { return sky.ownerDocument.defaultView.getComputedStyle(sky); }
+function eraseTo(point) {
+  const next = eraseStrokes(state.strokes, erasing.last, point, eraserRadius(), projection);
+  if (next !== state.strokes) { state.strokes = next; erasing.changed = true; }
+  erasing.last = point; eraserCursor = point;
+  drawMarks();
+}
+function cancelErasing() {
+  if (!erasing) return;
+  state.strokes = erasing.before;
+  if (sky.hasPointerCapture?.(erasing.id)) sky.releasePointerCapture(erasing.id);
+  erasing = null; eraserCursor = null;
+}
 function pointerDown(event) {
   if (event.pointerType === "pen") lastPenContact = performance.now();
   if (event.pointerType === "touch" && performance.now() - lastPenContact < 800)
     return;
-  if ((drawing && drawing.id !== event.pointerId) || draggingMark) return;
+  if ((drawing && drawing.id !== event.pointerId) || (erasing && erasing.id !== event.pointerId) || draggingMark) return;
   if (event.isPrimary === false || state.checked) return;
   event.preventDefault();
   sky.focus({ preventScroll: true });
   const coordinate = eventCoordinate(event);
   if (!coordinate) return;
+  if (state.mode === "lines" && $("draw-tool").value === "eraser") {
+    erasing = { id: event.pointerId, before: structuredClone(state.strokes), last: normalizedEvent(event), changed: false };
+    state.pending = null;
+    sky.setPointerCapture?.(event.pointerId);
+    eraseTo(erasing.last);
+    return;
+  }
   const mark = placedMark(event);
   if (mark) {
     draggingMark = { id: event.pointerId, mark, original: { ra: mark.ra, dec: mark.dec } };
@@ -1033,11 +1084,17 @@ function pointerDown(event) {
   } else place(coordinate, event.pointerType !== "touch");
 }
 function pointerMove(event) {
-  if (event.pointerType === "pen" && (event.buttons || drawing?.id === event.pointerId)) lastPenContact = performance.now();
+  if (event.pointerType === "pen" && (event.buttons || drawing?.id === event.pointerId || erasing?.id === event.pointerId)) lastPenContact = performance.now();
   const c = eventCoordinate(event);
   $("cursor-coords").textContent = c
     ? `RA ${(c[0] / 15).toFixed(2)}h · DEC ${c[1].toFixed(1)}°`
     : "ВНЕ СНИМКА";
+  if (state.mode === "lines" && $("draw-tool").value === "eraser" && !state.checked) {
+    eraserCursor = c ? normalizedEvent(event) : null;
+    if (erasing?.id === event.pointerId && c) eraseTo(normalizedEvent(event));
+    else drawMarks();
+    return;
+  }
   if (draggingMark?.id === event.pointerId) {
     if (c) { draggingMark.mark.ra = c[0]; draggingMark.mark.dec = c[1]; drawMarks(); }
     event.preventDefault();
@@ -1061,6 +1118,13 @@ function pointerMove(event) {
 }
 function pointerUp(event) {
   if (event.pointerType === "pen") lastPenContact = performance.now();
+  if (erasing?.id === event.pointerId) {
+    if (erasing.changed) rememberLineEdit(erasing.before);
+    erasing = null; eraserCursor = null;
+    if (sky.hasPointerCapture?.(event.pointerId)) sky.releasePointerCapture(event.pointerId);
+    updateAnswer();
+    return;
+  }
   if (draggingMark?.id === event.pointerId) {
     draggingMark = null;
     sky.classList.remove("dragging-point");
@@ -1072,7 +1136,7 @@ function pointerUp(event) {
   if (drawing.screen.length > 1) {
     const simplified = simplifyStroke(drawing.screen, 0.004),
       points = simplified.map((p) => projection.inverse(...p)).filter(Boolean);
-    if (points.length > 1) state.strokes.push({ points });
+    if (points.length > 1) { rememberLineEdit(); state.strokes.push({ points }); }
   }
   drawing = null;
   if (sky.hasPointerCapture?.(event.pointerId))
@@ -1196,8 +1260,10 @@ function checkAnswer(record = true) {
 }
 function clearAnswers() {
   if (isExam && variant.examReport) return;
+  cancelErasing();
   state.answers = {};
   state.strokes = [];
+  state.lineUndo = [];
   state.entries = [];
   state.pending = null;
   state.checked = false;
@@ -1261,10 +1327,10 @@ function bindEvents() {
     },
     captureInteraction: () => {
       const attempt = state;
-      const before = structuredClone({ answers: state.answers, selected: state.selected, pending: state.pending, strokes: state.strokes, entries: state.entries });
+      const before = structuredClone({ answers: state.answers, selected: state.selected, pending: state.pending, strokes: state.strokes, entries: state.entries, lineUndo: state.lineUndo });
       return () => {
         if (state !== attempt) return;
-        drawing = null; draggingMark = null;
+        drawing = null; draggingMark = null; erasing = null; eraserCursor = null;
         sky.classList.remove("dragging-point");
         Object.assign(state, before);
         updateAnswer();
@@ -1301,22 +1367,22 @@ function bindEvents() {
   };
   $("frame").onchange = updateFrame;
   $("apply").onclick = () => newTask();
-  $("new-task").onclick = () => newTask(true);
-  $("random-view").onclick = () => {
+  $("new-task").onclick = () => confirmSeedChange({ onConfirm: () => newTask(true) });
+  $("random-view").onclick = () => confirmSeedChange({ onConfirm: () => {
     $("ra").value = (Math.random() * 24).toFixed(2);
     $("dec").value = (Math.asin(Math.random() * 2 - 1) / RAD).toFixed(1);
     $("az").value = Math.floor(Math.random() * 360);
     $("alt").value = Math.floor(15 + Math.random() * 65);
     $("roll").value = Math.floor(Math.random() * 360);
     newTask(true);
-  };
+  } });
   document.querySelectorAll("[data-mode]").forEach(
     (button) =>
       (button.onclick = () => {
         switchMode(button.dataset.mode);
       }),
   );
-  $("generate-variant").onclick = () => newTask(true);
+  $("generate-variant").onclick = () => confirmSeedChange({ onConfirm: () => newTask(true) });
   $("load-variant").onclick = () => {
     try {
       const seed = redirectCode($("variant-seed").value, KIND);
@@ -1351,7 +1417,9 @@ function bindEvents() {
   sky.addEventListener("pointerdown", pointerDown);
   sky.addEventListener("pointermove", pointerMove);
   sky.addEventListener("pointerup", pointerUp);
+  sky.addEventListener("pointerleave", () => { if (!erasing) { eraserCursor = null; drawMarks(); } });
   sky.addEventListener("pointercancel", () => {
+    cancelErasing();
     if (draggingMark) Object.assign(draggingMark.mark, draggingMark.original);
     draggingMark = null;
     sky.classList.remove("dragging-point");
@@ -1361,12 +1429,13 @@ function bindEvents() {
   });
   sky.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      cancelErasing();
       drawing = null;
       state.pending = null;
       updateAnswer();
     }
     if (["Delete", "Backspace"].includes(event.key) && !state.checked) {
-      if (state.mode === "lines") state.strokes.pop();
+      if (state.mode === "lines") undoLineEdit();
       else if (state.mode === "sandbox") state.entries.pop();
       else if (state.targets[state.selected])
         delete state.answers[state.targets[state.selected].id];
@@ -1388,11 +1457,15 @@ function bindEvents() {
   });
   $("undo-line").onclick = () => {
     if (!state.checked) {
-      state.strokes.pop();
-      state.pending = null;
+      undoLineEdit();
       updateAnswer();
     }
   };
+  $("draw-tool").onchange = () => {
+    cancelErasing(); drawing = null; state.pending = null; eraserCursor = null;
+    updateAnswer();
+  };
+  $("eraser-size").oninput = () => { $("eraser-size-value").textContent = $("eraser-size").value; drawMarks(); };
   $("sandbox-add").onclick = addEntry;
   for (const id of ["sandbox-name", "sandbox-constellation", "sandbox-index", "sandbox-point"]) $(id).onkeydown = (event) => {
     if (event.key === "Enter") {
@@ -1448,7 +1521,7 @@ function bindEvents() {
   $("history-nav").onclick = showHistory;
   $("help-nav").onclick = () =>
     openDialog(
-      `<p class="eyebrow">FIELD NOTES</p><h2>Как заниматься в Nightweave</h2><ol><li>Выбери сложность: начальный уровень ограничивает звёзды буквами α–β; экспертный открывает весь каталог.</li><li>В параметрах отдельно задаются количества звёзд и объектов Мессье, поле зрения, наблюдатель, время UTC, размер звёзд и яркость фона.</li><li>Режимы вида: цветные звёзды на однотонном фоне; звёзды с Млечным Путём NASA; контрастные белые звёзды; чёрные точки на белом.</li><li>В обычном задании выбери объект и нажми на карту. «Вне карты» — ответ об отсутствии. ⓘ открывает карточку объекта и карту-искатель.</li><li>В песочнице выбери каталог, нажми на карту и напиши имя вручную. Принимаются номера M/М, русские и английские имена и обозначения Байера. Повторы и неизвестные имена получают ноль.</li><li>В режиме созвездий рисуй стилусом, пальцем или мышью. Есть соединение двумя нажатиями и отмена последнего штриха. Стилус всегда рисует.</li><li>PDF «Полный вариант» содержит условия и три карты. «Текущее задание» экспортирует выбранную тему. Задания и ответы скачиваются отдельными кнопками.</li></ol><p>Сначала появляется быстрый звёздный предпросмотр. Фон NASA уточняется в отдельном потоке и кэшируется. Для мгновенной работы выбери режим без Млечного Пути.</p><p>Клавиатура: ←/→ выбирают объект, Delete удаляет отметку, Esc отменяет незавершённую линию. Для нанесения точек используется мышь или сенсорный экран.</p>`,
+      `<p class="eyebrow">FIELD NOTES</p><h2>Как заниматься в Nightweave</h2><ol><li>Выбери сложность: начальный уровень ограничивает звёзды буквами α–β; экспертный открывает весь каталог.</li><li>В параметрах отдельно задаются количества звёзд и объектов Мессье, поле зрения, наблюдатель, время UTC, размер звёзд и яркость фона.</li><li>Режимы вида: цветные звёзды на однотонном фоне; звёзды с Млечным Путём NASA; контрастные белые звёзды; чёрные точки на белом.</li><li>В обычном задании выбери объект и нажми на карту. «Вне карты» — ответ об отсутствии. ⓘ открывает карточку объекта и карту-искатель.</li><li>В песочнице выбери каталог, нажми на карту и напиши имя вручную. Принимаются номера M/М, русские и английские имена и обозначения Байера. Повторы и неизвестные имена получают ноль.</li><li>В режиме созвездий рисуй стилусом, пальцем или мышью. Есть соединение двумя нажатиями и отмена последнего штриха. Для стирания выбери «Ластик»; стилус тоже поддерживается.</li><li>PDF «Полный вариант» содержит условия и три карты. «Текущее задание» экспортирует выбранную тему. Задания и ответы скачиваются отдельными кнопками.</li></ol><p>Сначала появляется быстрый звёздный предпросмотр. Фон NASA уточняется в отдельном потоке и кэшируется. Для мгновенной работы выбери режим без Млечного Пути.</p><p>Клавиатура: ←/→ выбирают объект, Delete удаляет отметку, Esc отменяет незавершённую линию. Для нанесения точек используется мышь или сенсорный экран.</p>`,
     );
   $("sources").onclick = () =>
     openDialog(
@@ -1458,7 +1531,7 @@ function bindEvents() {
 async function loadTexture() {
   try {
     const image = new Image();
-    image.src = "./assets/nasa-2020.jpg";
+    image.src = nasaTextureUrl();
     await image.decode();
     const canvas = document.createElement("canvas");
     canvas.width = image.width;
@@ -1481,9 +1554,7 @@ async function initialize() {
   bindEvents();
   try {
     if (routeLinkedCode(KIND)) return;
-    const response = await fetch("./assets/catalog.json", { cache: "no-cache" });
-    if (!response.ok) throw new Error("Каталог недоступен");
-    catalog = await response.json();
+    catalog = await loadCatalog();
     atlas = new Atlas(catalog, openDialog);
     let linked = null;
     try {

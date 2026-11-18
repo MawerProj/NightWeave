@@ -1,11 +1,26 @@
 let current = null;
 
 export function confirmDrawingCheck({ whole = false, exam = false, onConfirm }) {
+  showConfirmation({
+    title: exam ? "Завершить экзамен?" : whole ? "Проверить все задания?" : "Проверить рисунок?",
+    message: `${whole ? "Будут проверены все ответы, включая рисунок созвездий. После проверки дорисовывать будет нельзя." : "После проверки рисунок созвездий будет закрыт для редактирования."} Продолжить рисовать можно, если сейчас отменить проверку.`,
+    cancelLabel: "Продолжить рисовать",
+    confirmLabel: exam ? "Завершить и проверить" : whole ? "Проверить всё" : "Проверить рисунок",
+    kind: "drawing", onConfirm,
+  });
+}
+
+export function confirmSeedChange({ onConfirm }) {
+  showConfirmation({ title: "Создать новый seed?", message: "Текущие ответы и рисунки будут сброшены. Создать новое задание?", cancelLabel: "Отмена", confirmLabel: "Создать новый seed", kind: "seed", onConfirm });
+}
+
+function showConfirmation({ title, message, cancelLabel, confirmLabel, kind, onConfirm }) {
   if (current) return;
   const dialog = document.createElement("dialog");
   dialog.className = "check-confirmation";
+  dialog.dataset.confirmation = kind;
   dialog.setAttribute("aria-labelledby", "check-confirmation-title");
-  dialog.innerHTML = `<h2 id="check-confirmation-title">${exam ? "Завершить экзамен?" : whole ? "Проверить все задания?" : "Проверить рисунок?"}</h2><p>${whole ? "Будут проверены все ответы, включая рисунок созвездий. После проверки дорисовывать будет нельзя." : "После проверки рисунок созвездий будет закрыт для редактирования."} Продолжить рисовать можно, если сейчас отменить проверку.</p><div><button type="button" class="secondary" data-continue autofocus>Продолжить рисовать</button><button type="button" class="primary" data-confirm>${exam ? "Завершить и проверить" : whole ? "Проверить всё" : "Проверить рисунок"}</button></div>`;
+  dialog.innerHTML = `<h2 id="check-confirmation-title">${title}</h2><p>${message}</p><div><button type="button" class="secondary" data-continue autofocus>${cancelLabel}</button><button type="button" class="primary" data-confirm>${confirmLabel}</button></div>`;
   const finish = confirmed => {
     if (current !== dialog) return;
     current = null;

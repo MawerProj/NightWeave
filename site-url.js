@@ -7,7 +7,16 @@ export function siteBaseUrl(current = currentSiteUrl()) {
 }
 
 export function pageUrl(kind, current = currentSiteUrl()) {
+  if (globalThis.NIGHTWEAVE_OFFLINE) {
+    const result = new URL(current);
+    result.search = ""; result.hash = "";
+    return result;
+  }
   return new URL(kind === "Q" ? "quiz.html" : kind === "E" ? "exam.html" : "./", siteBaseUrl(current));
+}
+
+export function replaceSiteUrl(url) {
+  try { globalThis.history?.replaceState(null, "", url); } catch { /* Some file viewers cannot update history. */ }
 }
 
 export function localProgressUrl(entry, current = currentSiteUrl()) {
