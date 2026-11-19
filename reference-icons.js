@@ -1,7 +1,13 @@
+import { GREAT_CIRCLE_TYPES } from "./astro.js?v=14";
+
 export function referenceSymbol(target) {
-  if (target.id.startsWith("edge-")) return target.name.split(" ·")[0];
+  if (target.id.startsWith("edge-")) {
+    const [, family, index] = target.id.split("-");
+    const type = GREAT_CIRCLE_TYPES[Number(family)];
+    if (type) return type.edgePrefix + (Number(index) + 1);
+  }
   return { spring: "♈", autumn: "♎", summer: "♋", winter: "♑",
-    G1: "Γ₁", G2: "Γ₂", "epsilon-1": "ε₁", "epsilon--1": "ε₂",
+    G1: "НГ1", G2: "НГ2", "epsilon-1": "ЭГ1", "epsilon--1": "ЭГ2",
     north: "N", south: "S" }[target.id] || target.shortName || "✦";
 }
 

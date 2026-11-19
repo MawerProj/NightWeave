@@ -1,5 +1,5 @@
-import { attachMapGestures } from "./map-gestures.js?v=13";
-import { attachMapWheel } from "./map-wheel.js?v=13";
+import { attachMapGestures } from "./map-gestures.js?v=14";
+import { attachMapWheel } from "./map-wheel.js?v=14";
 
 const controllers = new WeakMap();
 const styleKeys = ["width", "position", "left", "top", "transform", "transformOrigin"];

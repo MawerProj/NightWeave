@@ -216,13 +216,15 @@ export const referencePoints = [
   { id: "south", name: "Южный полюс мира", ra: 0, dec: -90 },
   {
     id: "G1",
-    name: "Γ₁ Галактический ∩ небесный экватор",
+    name: "НГ1 · небесный экватор ∩ галактический экватор",
+    shortName: "НГ1",
     ra: 102.85948,
     dec: 0,
   },
   {
     id: "G2",
-    name: "Γ₂ Галактический ∩ небесный экватор",
+    name: "НГ2 · небесный экватор ∩ галактический экватор",
+    shortName: "НГ2",
     ra: 282.85948,
     dec: 0,
   },
@@ -242,7 +244,8 @@ for (const sign of [1, -1]) {
   );
   referencePoints.push({
     id: `epsilon-${sign}`,
-    name: `ε${sign === 1 ? "₁" : "₂"} Галактический экватор ∩ эклиптика`,
+    name: `ЭГ${sign === 1 ? "1" : "2"} · эклиптика ∩ галактический экватор`,
+    shortName: `ЭГ${sign === 1 ? "1" : "2"}`,
     ra,
     dec,
   });
@@ -277,6 +280,12 @@ export function greatCircles() {
   return [equator, ecliptic, galactic];
 }
 
+export const GREAT_CIRCLE_TYPES = [
+  { id: "equator", edgePrefix: "НК", name: "небесный экватор" },
+  { id: "ecliptic", edgePrefix: "ЭК", name: "эклиптика" },
+  { id: "galactic", edgePrefix: "ГК", name: "галактический экватор" },
+];
+
 export function boundaryCrossings(config) {
   const projection = projector(config),
     result = [];
@@ -298,9 +307,12 @@ export function boundaryCrossings(config) {
         else b = c;
       }
       const point = insideA ? a : b;
+      const family = GREAT_CIRCLE_TYPES[index];
       result.push({
         id: `edge-${index}-${count}`,
-        name: `${["E", "Γ", "ε"][index]}${++count} · пересечение с краем`,
+        name: `${family.edgePrefix}${count + 1} · ${family.name} ∩ край карты`,
+        shortName: `${family.edgePrefix}${++count}`,
+        curve: family.id,
         ra: point[0],
         dec: point[1],
       });

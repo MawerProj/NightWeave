@@ -1,8 +1,8 @@
-import { loadCatalog } from "./runtime-assets.js?v=13";
-import { confirmSeedChange } from "./check-confirmation.js?v=13";
-import { attachInlineMap } from "./inline-map.js?v=13";
-import { currentSiteUrl, replaceSiteUrl } from "./site-url.js?v=13";
-import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=13";
+import { loadCatalog } from "./runtime-assets.js?v=14";
+import { confirmSeedChange } from "./check-confirmation.js?v=14";
+import { attachInlineMap } from "./inline-map.js?v=14";
+import { currentSiteUrl, replaceSiteUrl } from "./site-url.js?v=14";
+import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=14";
 import {
   QUESTION_TYPES,
   QUIZ_DEFAULTS,
@@ -12,14 +12,14 @@ import {
   gradeQuiz,
   quizUrl,
   readQuizUrl,
-} from "./quiz-model.js?v=13";
-import { drawLocator } from "./locator.js?v=13";
-import { printQuiz } from "./quiz-print.js?v=13";
-import { downloadBlob } from "./pdf.js?v=13";
-import { Atlas } from "./atlas.js?v=13";
+} from "./quiz-model.js?v=14";
+import { drawLocator } from "./locator.js?v=14";
+import { printQuiz } from "./quiz-print.js?v=14";
+import { downloadBlob } from "./pdf.js?v=14";
+import { Atlas } from "./atlas.js?v=14";
 
-import { seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=13";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=13";
+import { seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=14";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=14";
 
 const $ = (id) => document.getElementById(id),
   KEY = "nightweave-quiz-v1";

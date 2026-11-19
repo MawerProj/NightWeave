@@ -1,5 +1,5 @@
 const PREFIX = `nightweave-app:${self.registration.scope}:`;
-const CACHE = PREFIX + "1.4.1";
+const CACHE = PREFIX + "1.5.0";
 const APP = new URL("nightweave-offline.html", self.registration.scope).href;
 const FILES = ["nightweave-offline.html", "manifest.webmanifest", "assets/app-icon-192.png", "assets/app-icon-512.png"]
   .map(path => new URL(path, self.registration.scope).href);

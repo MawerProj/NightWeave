@@ -1,4 +1,4 @@
-import { rotateOffset } from "./map-view.js?v=13";
+import { rotateOffset } from "./map-view.js?v=14";
 
 export function attachMapWheel({ viewport, stage, getZoom, setZoom, getRotation, setRotation, getStageSize, enabled = () => true }) {
   function wheel(event) {

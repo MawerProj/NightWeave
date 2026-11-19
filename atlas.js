@@ -1,11 +1,11 @@
-import { attachInlineMap } from "./inline-map.js?v=13";
-import { drawConstellationLines } from "./constellation-lines.js?v=13";
-import { atlasStars, constellationView } from "./constellation-atlas.js?v=13";
-import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=13";
-import { projector } from "./astro.js?v=13";
-import { vectorMap } from "./renderer.js?v=13";
-import { normalizeName } from "./training.js?v=13";
-import { downloadBlob } from "./pdf.js?v=13";
+import { attachInlineMap } from "./inline-map.js?v=14";
+import { drawConstellationLines } from "./constellation-lines.js?v=14";
+import { atlasStars, constellationView } from "./constellation-atlas.js?v=14";
+import { openFullscreen, closeFullscreen } from "./fullscreen.js?v=14";
+import { projector } from "./astro.js?v=14";
+import { vectorMap } from "./renderer.js?v=14";
+import { normalizeName } from "./training.js?v=14";
+import { downloadBlob } from "./pdf.js?v=14";
 
 const escape = (text) =>
   String(text).replace(

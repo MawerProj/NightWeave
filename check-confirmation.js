@@ -1,5 +1,9 @@
 let current = null;
 
+export function cancelConfirmation(kind) {
+  if (current?.dataset.confirmation === kind) current.querySelector("[data-continue]").click();
+}
+
 export function confirmDrawingCheck({ whole = false, exam = false, onConfirm }) {
   showConfirmation({
     title: exam ? "Завершить экзамен?" : whole ? "Проверить все задания?" : "Проверить рисунок?",

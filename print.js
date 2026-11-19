@@ -1,15 +1,16 @@
-import { currentSiteUrl } from "./site-url.js?v=13";
+import { currentSiteUrl } from "./site-url.js?v=14";
+import { referenceSymbol } from "./reference-icons.js?v=14";
 import {
   boundaryCrossings,
   projector,
   randomGenerator,
   referencePoints,
-} from "./astro.js?v=13";
-import { selectTargets, visibleSegments, resolveObject, sortMessier } from "./training.js?v=13";
-import { vectorMap, mapHeight } from "./renderer.js?v=13";
-import { createVariant, variantUrl, hasCustomSettings } from "./variant.js?v=13";
-import { createPdf } from "./pdf.js?v=13";
-import { drawPrintQr } from "./print-qr.js?v=13";
+} from "./astro.js?v=14";
+import { selectTargets, visibleSegments, resolveObject, sortMessier } from "./training.js?v=14";
+import { vectorMap, mapHeight } from "./renderer.js?v=14";
+import { createVariant, variantUrl, hasCustomSettings } from "./variant.js?v=14";
+import { createPdf } from "./pdf.js?v=14";
+import { drawPrintQr } from "./print-qr.js?v=14";
 
 const WIDTH = 1654,
   HEIGHT = 2339,
@@ -181,7 +182,7 @@ function instructionPage(packet, answer) {
   if (packet.sheets.length === 3) {
     y = text(
       ctx,
-      "1. Отметьте на Карте 1, если возможно, точки равноденствия (♈, ♎) и солнцестояния (♋, ♑); точку пересечения галактического и небесного экваторов Γ; точку пересечения эклиптики и галактического экватора ε.",
+      "1. Отметьте на Карте 1, если возможно, точки равноденствия (♈, ♎) и солнцестояния (♋, ♑); пересечение небесного и галактического экваторов НГ1; пересечение эклиптики и галактического экватора ЭГ1.",
       MARGIN,
       y,
       WIDTH - 2 * MARGIN,
@@ -207,7 +208,7 @@ function instructionPage(packet, answer) {
     y =
       text(
         ctx,
-        "2. Отметьте на Карте 1 точки пересечения небесного экватора и границы карты E₁, E₂; галактического экватора и границы карты Γ₁, Γ₂; эклиптики и границы карты ε₁, ε₂ (при наличии). Нумерация пар произвольная.",
+        "2. Отметьте на Карте 1 пересечения с краем: НК1, НК2 — небесный экватор; ГК1, ГК2 — галактический экватор; ЭК1, ЭК2 — эклиптика (при наличии). К означает край карты. Нумерация внутри каждой пары произвольная.",
         MARGIN,
         y,
         WIDTH - 2 * MARGIN,
@@ -289,16 +290,7 @@ function annotate(ctx, canvas, sheet) {
         ? target.bayer
         : mode === "messier"
           ? target.name
-          : target.shortName || (target.id.startsWith("edge-")
-            ? target.name.split(" ·")[0]
-            : {
-                spring: "♈",
-                autumn: "♎",
-                summer: "♋",
-                winter: "♑",
-                G1: "Γ",
-                "epsilon-1": "ε",
-              }[target.id] || String(index + 1));
+          : referenceSymbol(target);
     ctx.font = 'italic 23px "Times New Roman", "Nightweave Symbols", serif';
     const width = ctx.measureText(label).width;
     let tx = clampPrint(x + 10, 8, canvas.width - width - 8),

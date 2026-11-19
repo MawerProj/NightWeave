@@ -1,14 +1,15 @@
-import { loadCatalog, nasaTextureUrl } from "./runtime-assets.js?v=13";
-import { eraseStrokes } from "./eraser.js?v=13";
-import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=13";
-import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=13";
-import { nearestPlacedPoint } from "./point-drag.js?v=13";
-import { attachInlineMap } from "./inline-map.js?v=13";
-import { drawConstellationLines } from "./constellation-lines.js?v=13";
-import { confirmDrawingCheck, confirmSeedChange } from "./check-confirmation.js?v=13";
-import { currentSiteUrl, replaceSiteUrl } from "./site-url.js?v=13";
-import { canvasPoint } from "./map-view.js?v=13";
-import { openFullscreen } from "./fullscreen.js?v=13";
+import { loadCatalog, nasaTextureUrl } from "./runtime-assets.js?v=14";
+import { eraseStrokes } from "./eraser.js?v=14";
+import { durationSeconds, startClock, remainingTime, finishClock, clockLabel } from "./drawing-clock.js?v=14";
+import { createExam, gradeExam, EXAM_TOLERANCE } from "./exam.js?v=14";
+import { drawReferenceIcon, referenceSymbol } from "./reference-icons.js?v=14";
+import { nearestPlacedPoint } from "./point-drag.js?v=14";
+import { attachInlineMap } from "./inline-map.js?v=14";
+import { drawConstellationLines } from "./constellation-lines.js?v=14";
+import { confirmDrawingCheck, confirmSeedChange, cancelConfirmation } from "./check-confirmation.js?v=14";
+import { currentSiteUrl, replaceSiteUrl } from "./site-url.js?v=14";
+import { canvasPoint } from "./map-view.js?v=14";
+import { openFullscreen } from "./fullscreen.js?v=14";
 import {
   RAD,
   clamp,
@@ -21,7 +22,7 @@ import {
   boundaryCrossings,
   greatCircles,
   angularDistance,
-} from "./astro.js?v=13";
+} from "./astro.js?v=14";
 import {
   LEVELS,
   selectTargets,
@@ -32,9 +33,9 @@ import {
   scoreDrawing,
   sandboxPoints,
   sortMessier,
-} from "./training.js?v=13";
-import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=13";
-import { SkyRenderer, mapHeight } from "./renderer.js?v=13";
+} from "./training.js?v=14";
+import { GREEK_LETTERS, bayerLabel, bayerMatches } from "./bayer.js?v=14";
+import { SkyRenderer, mapHeight } from "./renderer.js?v=14";
 import {
   createVariant,
   validateConfig,
@@ -42,12 +43,12 @@ import {
   variantSummary,
   variantUrl as taskUrl,
   readVariantUrl,
-} from "./variant.js?v=13";
-import { Atlas } from "./atlas.js?v=13";
-import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=13";
-import { downloadBlob } from "./pdf.js?v=13";
-import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=13";
-import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=13";
+} from "./variant.js?v=14";
+import { Atlas } from "./atlas.js?v=14";
+import { makePacket, renderPacket, renderSettingsPacket } from "./print.js?v=14";
+import { downloadBlob } from "./pdf.js?v=14";
+import { parseCode, seedCode, redirectCode, routeLinkedCode } from "./codes.js?v=14";
+import { recordProgress, updateProgressCount, showProgress } from "./progress.js?v=14";
 
 const $ = (id) => document.getElementById(id);
 const SIZE = 1000,
@@ -88,7 +89,7 @@ const titles = {
   ],
   reference: [
     "Ориентируйся<br> на небесной сфере",
-    "Отметь опорные точки. E, Γ и ε — пересечения экваторов и эклиптики с краем области; нумерация пар произвольная.",
+    "НГ — небесный ∩ галактический экватор; ЭГ — эклиптика ∩ галактический экватор. НК, ГК, ЭК — пересечения небесного экватора, галактического экватора и эклиптики с краем карты. Номера внутри каждой пары можно менять местами.",
   ],
   lines: [
     "Нарисуй<br> знакомые созвездия",
@@ -159,6 +160,85 @@ function save() {
     /* Storage is optional. */
   }
 }
+
+let drawingClockInterval = null;
+const drawingRound = () => variant?.attempts.lines.speedRound;
+const timedDrawing = () => !isExam && $("line-session").value === "timed";
+const roundInProgress = () => ["loading", "running"].includes(drawingRound()?.status);
+const timedDrawingLocked = () => state.mode === "lines" && timedDrawing() && drawingRound()?.status !== "running";
+
+function syncDrawingSession() {
+  if (isExam) return;
+  const round = drawingRound(), busy = roundInProgress();
+  const timed = timedDrawing(), finished = round?.status === "finished";
+  $("drawing-timed-controls").hidden = !timed;
+  $("line-review").classList.toggle("timed-running", busy);
+  $("line-session").disabled = busy;
+  $("drawing-seconds").disabled = busy;
+  $("check-variant").disabled = round?.status === "loading";
+  $("start-drawing-round").hidden = finished;
+  $("start-drawing-round").disabled = busy;
+  $("next-drawing-round").hidden = !finished;
+  const label = clockLabel(round?.status === "running" ? remainingTime(round)
+    : finished ? round.seconds * 1000 - round.elapsed : Number($("drawing-seconds").value || 150) * 1000);
+  if ($("drawing-countdown").textContent !== label) $("drawing-countdown").textContent = label;
+  $("drawing-countdown").classList.toggle("urgent", round?.status === "running" && remainingTime(round) <= 10000);
+  const status = round?.status === "loading" ? "Готовим новую карту; отсчёт ещё не начался."
+    : round?.status === "running" ? "Время идёт. По окончании рисунок проверится автоматически."
+    : finished ? round.expired ? "Время вышло. Разбор готов — можно открыть новый раунд." : "Раунд завершён. Можно открыть новую карту."
+    : "Новая карта и автоматическая проверка по окончании времени.";
+  if ($("drawing-time-status").textContent !== status) $("drawing-time-status").textContent = status;
+  if (state.mode === "lines" && timed) {
+    $("check-lines").disabled = state.checked || round?.status !== "running";
+    $("draw-tool").disabled = $("undo-line").disabled = state.checked || timedDrawingLocked();
+    $("clear").disabled = busy;
+  } else $("clear").disabled = false;
+  for (const button of document.querySelectorAll("[data-mode]")) button.disabled = busy && button.dataset.mode !== "lines";
+  for (const id of ["level", "apply", "display", "grid", "guides"]) $(id).disabled = busy;
+}
+
+function tickDrawingClock(update = true) {
+  const round = drawingRound();
+  if (round?.status !== "running") return false;
+  if (!remainingTime(round)) { finishDrawingRound(); return true; }
+  if (update) syncDrawingSession();
+  return false;
+}
+
+function finishDrawingRound() {
+  const round = drawingRound();
+  if (round?.status !== "running") return;
+  state.speedRound = finishClock(round);
+  clearInterval(drawingClockInterval);
+  cancelConfirmation("drawing");
+  if (drawing) pointerUp({ pointerId: drawing.id });
+  if (erasing) pointerUp({ pointerId: erasing.id });
+  checkAnswer();
+  syncDrawingSession();
+  if (state.speedRound.expired) toast("Время вышло. Рисунок проверен автоматически.");
+}
+
+async function startDrawingRound() {
+  let seconds;
+  try { seconds = durationSeconds($("drawing-seconds").value); }
+  catch (error) { toast(error.message); return; }
+  if (!newTask(true)) return;
+  const attempt = state;
+  attempt.speedRound = { status: "loading", seconds };
+  syncDrawingSession(); save();
+  try {
+    let pending;
+    do { pending = renderPromise; await pending; } while (state === attempt && pending !== renderPromise);
+    if (state !== attempt) return;
+    attempt.speedRound = startClock(seconds);
+    save(); syncDrawingSession();
+    drawingClockInterval = setInterval(tickDrawingClock, 200);
+  } catch {
+    delete attempt.speedRound;
+    syncDrawingSession(); save(); toast("Не удалось подготовить карту. Попробуй ещё раз.");
+  }
+}
+
 function toast(message) {
   $("toast").textContent = message;
   $("toast").hidden = false;
@@ -324,6 +404,7 @@ function updateVariantSummary() {
 }
 function switchMode(mode) {
   if (!variant || (isExam && mode === "sandbox")) return;
+  if (roundInProgress() && mode !== "lines") { toast("Сначала заверши раунд на время."); return; }
   cancelErasing();
   eraserCursor = null;
   const fullscreenResult = document.querySelector("[data-fullscreen-result]");
@@ -360,11 +441,15 @@ function switchMode(mode) {
 }
 function newTask(changeSeed = false, supplied = null) {
   try {
+    if (roundInProgress() && !changeSeed) { writeConfig(variant.base); toast("Сначала заверши раунд на время."); return null; }
     if (changeSeed) $("seed").value = numericSeed();
     const config = supplied ? validateConfig(supplied) : readConfig();
     if (changeSeed && !isExam) config.maps[1] = { ...config.maps[0] };
     const mode = state.mode;
-    variant = isExam ? createExam(catalog, config.seed) : createVariant(catalog, config);
+    const next = isExam ? createExam(catalog, config.seed) : createVariant(catalog, config);
+    clearInterval(drawingClockInterval);
+    cancelErasing();
+    variant = next;
     freeAttempt = null;
     writeConfig(variant.base);
     learned = false;
@@ -372,6 +457,7 @@ function newTask(changeSeed = false, supplied = null) {
     toast(
       `Seed ${seedCode(KIND, variant.seed)} создан: ${variant.attempts.stars.targets.length} звезда, ${variant.attempts.messier.targets.length} объекта Мессье.`,
     );
+    return variant;
   } catch (error) {
     toast(error.message);
   }
@@ -400,6 +486,7 @@ function storeModeScore(mode, modeResults, line, record = true) {
   save();
 }
 function checkWholeVariant() {
+  if (roundInProgress()) finishDrawingRound();
   if (isExam) {
     if (variant.examReport) return;
     variant.participantName = $("exam-name").value.trim();
@@ -910,6 +997,7 @@ function updateProgress() {
       : state.mode === "sandbox"
         ? "Проверяются подписи и положения · повторы не засчитываются"
         : `До 100 очков за объект · допуск ${tolerance().toFixed(1)}°`;
+  syncDrawingSession();
 }
 function renderAll() {
   document
@@ -1046,6 +1134,7 @@ function cancelErasing() {
   erasing = null; eraserCursor = null;
 }
 function pointerDown(event) {
+  if (tickDrawingClock(false) || timedDrawingLocked()) return;
   if (event.pointerType === "pen") lastPenContact = performance.now();
   if (event.pointerType === "touch" && performance.now() - lastPenContact < 800)
     return;
@@ -1084,6 +1173,7 @@ function pointerDown(event) {
   } else place(coordinate, event.pointerType !== "touch");
 }
 function pointerMove(event) {
+  if (tickDrawingClock(false)) return;
   if (event.pointerType === "pen" && (event.buttons || drawing?.id === event.pointerId || erasing?.id === event.pointerId)) lastPenContact = performance.now();
   const c = eventCoordinate(event);
   $("cursor-coords").textContent = c
@@ -1117,6 +1207,7 @@ function pointerMove(event) {
   drawMarks();
 }
 function pointerUp(event) {
+  if (tickDrawingClock(false)) return;
   if (event.pointerType === "pen") lastPenContact = performance.now();
   if (erasing?.id === event.pointerId) {
     if (erasing.changed) rememberLineEdit(erasing.before);
@@ -1200,6 +1291,10 @@ function calculateResults() {
   });
 }
 function checkAnswer(record = true) {
+  if (state.mode === "lines" && state.speedRound?.status === "running") {
+    finishDrawingRound();
+    return;
+  }
   if (isExam) {
     if (!variant.examReport) return;
     const report = variant.examReport;
@@ -1236,6 +1331,13 @@ function checkAnswer(record = true) {
   $("results").innerHTML =
     `<div class="results-top"><div><p class="eyebrow">РАЗБОР ЗАДАНИЯ</p><h3>${percent >= 85 ? "Небо становится знакомым" : "Ориентир для следующей попытки"}</h3><p>Seed ${escape(seedCode(KIND, state.config.seed))} · ${LEVELS[state.config.level].label}${learned ? " · каталог использован как подсказка" : ""}</p></div><div class="score">${score}<span style="font-size:14px;color:#92a1aa"> / ${maximum}</span></div></div><div class="legend"><span class="user">○ Твой ответ</span><span class="correct">＋ Правильный ответ</span><span>┄ Смещение</span></div>${line ? `<p>Полнота рисунка: ${Math.round(line.coverage * 100)}%. Точность штрихов: ${Math.round(line.precision * 100)}%. Пропуски и лишние линии снижают оценку; направление штриха не влияет.</p>` : `<div class="table-scroll"><table><thead><tr><th>Объект</th><th>Результат</th><th>Очки</th></tr></thead><tbody>${results.map((r, i) => `<tr><td>${r.target ? `<button class="subtle result-object" data-result="${i}">${escape(r.target.name)} ⓘ</button>` : escape(r.entry?.name || "—")}${r.target?.bayer ? `<br> <span class="mono">${escape(r.target.bayer)}</span>` : ""}</td><td>${escape(r.reason)}</td><td>${r.points} / 100</td></tr>`).join("")}</tbody></table></div><p>Допуск ${tolerance().toFixed(1)}°. Верное отсутствие — 100 очков; пропуск — 0. Повтор одной подписи в песочнице не засчитывается.</p>`}<button class="secondary" id="retry">Повторить задания</button>`;
   $("results").hidden = false;
+  if (state.mode === "lines" && state.speedRound?.status === "finished") {
+    const note = document.createElement("p");
+    note.className = "drawing-time-result";
+    const round = state.speedRound;
+    note.textContent = `${round.expired ? "Время вышло. Рисунок проверен автоматически." : "Раунд завершён досрочно."} Лимит ${clockLabel(round.seconds * 1000)} · затрачено ${clockLabel(round.elapsed)}.`;
+    $("results").prepend(note);
+  }
   $("retry").onclick = clearAnswers;
   document
     .querySelectorAll("[data-result]")
@@ -1243,7 +1345,7 @@ function checkAnswer(record = true) {
       (button) =>
         (button.onclick = () => {
           const target = results[Number(button.dataset.result)].target;
-          if (target.kind === "reference") openDialog(`<h2>${escape(target.name)}</h2><p>RA ${(target.ra / 15).toFixed(3)}h · Dec ${target.dec.toFixed(2)}°. Положение J2000; пересечения с краем зависят от выбранной карты.</p>`);
+          if (state.mode === "reference" || target.kind === "reference") openDialog(`<h2>${escape(target.name)}</h2><p>RA ${(target.ra / 15).toFixed(3)}h · Dec ${target.dec.toFixed(2)}°. Положение J2000; пересечения с краем зависят от выбранной карты.</p>`);
           else atlas.detail(target);
         }),
     );
@@ -1260,10 +1362,12 @@ function checkAnswer(record = true) {
 }
 function clearAnswers() {
   if (isExam && variant.examReport) return;
+  if (roundInProgress()) { toast("Во время раунда можно пользоваться ластиком и отменой действия."); return; }
   cancelErasing();
   state.answers = {};
   state.strokes = [];
   state.lineUndo = [];
+  delete state.speedRound;
   state.entries = [];
   state.pending = null;
   state.checked = false;
@@ -1320,6 +1424,13 @@ function snapshot() {
 }
 function showHistory() { showProgress(openDialog); }
 function bindEvents() {
+  $("line-session").onchange = () => { syncDrawingSession(); drawMarks(); };
+  $("drawing-seconds").oninput = syncDrawingSession;
+  for (const id of ["start-drawing-round", "next-drawing-round"]) $(id).onclick = () => {
+    if (!roundInProgress()) confirmSeedChange({ onConfirm: startDrawingRound });
+  };
+  document.addEventListener("visibilitychange", tickDrawingClock);
+  globalThis.addEventListener?.("pageshow", tickDrawingClock);
   const interactions = {
     canStartGesture: () => Boolean(state.config) && performance.now() - lastPenContact >= 800,
     onSingleTouchEnd: () => {
@@ -1485,7 +1596,7 @@ function bindEvents() {
   $("clear").onclick = clearAnswers;
   $("check").onclick = () => state.mode === "lines" ? $("check-lines").click() : checkAnswer();
   $("check-lines").onclick = () => {
-    if (state.mode !== "lines" || state.checked || isExam) return;
+    if (state.mode !== "lines" || state.checked || isExam || timedDrawingLocked()) return;
     const attempt = state;
     confirmDrawingCheck({ onConfirm: () => { if (state === attempt) checkAnswer(); } });
   };
@@ -1571,6 +1682,18 @@ async function initialize() {
           JSON.stringify(validateConfig(saved.variant.base))))
     ) {
       variant = saved.variant;
+      if (variant.referenceVersion !== 2) {
+        variant.references = variant.references.map(target => ({ ...target, ...referencePoints.find(point => point.id === target.id) }));
+        variant.edges = boundaryCrossings(variant.configs[0]);
+        variant.attempts.reference.targets = [...variant.references, ...variant.edges];
+        variant.attempts.reference.checked = false;
+        delete variant.scores.points; delete variant.scores.edges;
+        if (isExam && variant.examReport) {
+          delete variant.examReport;
+          for (const attempt of Object.values(variant.attempts)) attempt.checked = false;
+        }
+        variant.referenceVersion = 2;
+      }
       const selectedId = variant.attempts.messier.targets[variant.attempts.messier.selected]?.id;
       variant.attempts.messier.targets = sortMessier(variant.attempts.messier.targets);
       variant.attempts.messier.selected = Math.max(0, variant.attempts.messier.targets.findIndex(target => target.id === selectedId));
@@ -1581,9 +1704,19 @@ async function initialize() {
         delete variant.scores.lines;
       }
       freeAttempt = saved.freeAttempt;
+      const round = drawingRound();
+      if (round) {
+        $("line-session").value = "timed";
+        $("drawing-seconds").value = round.seconds;
+        if (round.status === "loading") delete variant.attempts.lines.speedRound;
+      }
       writeConfig(variant.base);
-      state.mode = (isExam && linked?.mode === "sandbox") ? "reference" : linked?.mode || "reference";
+      state.mode = roundInProgress() ? "lines" : (isExam && linked?.mode === "sandbox") ? "reference" : linked?.mode || "reference";
       switchMode(state.mode);
+      if (drawingRound()?.status === "running") {
+        if (state.mode !== "lines") switchMode("lines");
+        if (!tickDrawingClock()) drawingClockInterval = setInterval(tickDrawingClock, 200);
+      }
     } else {
       state.mode = (isExam && linked?.mode === "sandbox") ? "reference" : linked?.mode || "reference";
       newTask(false, linked?.config || { ...DEFAULT_CONFIG, seed: numericSeed() });

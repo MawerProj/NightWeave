@@ -5,10 +5,10 @@ import {
   referencePoints,
   clamp,
   angularDistance,
-} from "./astro.js?v=13";
-import { selectTargets, visibleSegments } from "./training.js?v=13";
-import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=13";
-import { pageUrl } from "./site-url.js?v=13";
+} from "./astro.js?v=14";
+import { selectTargets, visibleSegments } from "./training.js?v=14";
+import { parseCode, seedCode, changedSettings, seedParams } from "./codes.js?v=14";
+import { pageUrl } from "./site-url.js?v=14";
 
 export const DEFAULT_MAPS = [
   {
@@ -242,6 +242,7 @@ export function createVariant(catalog, input) {
   });
   return {
     generation: 9,
+    referenceVersion: 2,
     seed: base.seed,
     base,
     configs,
